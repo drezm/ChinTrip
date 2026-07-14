@@ -2,10 +2,14 @@
   "name": "China Trip Companion",
   "short_name": "China Trip",
   "description": "Private shared China trip planner.",
+  "id": "/",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#f8fafc",
   "theme_color": "#f8fafc",
+  "categories": ["travel", "productivity"],
   "icons": [
     {
       "src": "/icon-192.svg",

@@ -316,6 +316,13 @@ export function createSeedTripState(): TripState {
         sortOrder: 10,
       },
       {
+        id: 'item-insurance',
+        checklistId: 'check-visa',
+        text: 'Страховка и скрины виз/броней сохранены офлайн',
+        done: false,
+        sortOrder: 20,
+      },
+      {
         id: 'item-vpn',
         checklistId: 'check-packing',
         text: 'VPN, eSIM, карты, офлайн-переводчик',
@@ -328,6 +335,20 @@ export function createSeedTripState(): TripState {
         text: '你好 - здравствуйте',
         done: false,
         sortOrder: 10,
+      },
+      {
+        id: 'item-xiexie',
+        checklistId: 'check-phrases',
+        text: '谢谢 · Xiè xie — спасибо',
+        done: false,
+        sortOrder: 20,
+      },
+      {
+        id: 'item-buyaola',
+        checklistId: 'check-phrases',
+        text: '不要辣 · Bù yào là — не остро, пожалуйста',
+        done: false,
+        sortOrder: 30,
       },
     ],
     settings: {

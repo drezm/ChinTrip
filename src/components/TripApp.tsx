@@ -8,6 +8,7 @@ import {
   ImageIcon,
   KeyRound,
   Landmark,
+  Languages,
   ListChecks,
   Loader2,
   LockKeyhole,
@@ -19,6 +20,7 @@ import {
   Plus,
   ReceiptText,
   RefreshCw,
+  QrCode,
   Save,
   Settings,
   ShoppingBag,
@@ -27,7 +29,10 @@ import {
   Trash2,
   UserRound,
   Utensils,
+  Volume2,
   WalletCards,
+  Wifi,
+  WifiOff,
   X,
 } from 'lucide-react'
 import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from 'react'
@@ -59,11 +64,17 @@ import type {
 import { lockTrip, refreshRate, saveTripState } from '../server/functions'
 
 type TabId =
+  | 'today'
   | 'route'
   | 'places'
+  | 'expenses'
+  | 'more'
+
+type MoreSectionId =
+  | 'documents'
+  | 'phrases'
   | 'hotels'
   | 'tickets'
-  | 'expenses'
   | 'notes'
   | 'settings'
 
@@ -74,23 +85,93 @@ interface TripAppProps {
 }
 
 const tabs: Array<{ id: TabId; label: string; icon: ReactNode }> = [
+  { id: 'today', label: 'Сегодня', icon: <CalendarDays size={20} /> },
   { id: 'route', label: 'Маршрут', icon: <Map size={20} /> },
   { id: 'places', label: 'Места', icon: <MapPin size={20} /> },
-  { id: 'hotels', label: 'Отели', icon: <Building2 size={20} /> },
-  { id: 'tickets', label: 'Билеты', icon: <Ticket size={20} /> },
-  { id: 'expenses', label: 'Расходы', icon: <ReceiptText size={20} /> },
-  { id: 'notes', label: 'Заметки', icon: <ListChecks size={20} /> },
-  { id: 'settings', label: 'Ещё', icon: <Settings size={20} /> },
+  { id: 'expenses', label: 'Деньги', icon: <ReceiptText size={20} /> },
+  { id: 'more', label: 'Ещё', icon: <Settings size={20} /> },
 ]
 
 const travelerIds: TravelerId[] = ['traveler-a', 'traveler-b', 'traveler-c']
+
+const moreSections: Array<{ id: MoreSectionId; label: string; icon: ReactNode }> = [
+  { id: 'documents', label: 'Документы', icon: <QrCode size={18} /> },
+  { id: 'phrases', label: 'Фразы', icon: <Languages size={18} /> },
+  { id: 'hotels', label: 'Отели', icon: <Building2 size={18} /> },
+  { id: 'tickets', label: 'Билеты', icon: <Ticket size={18} /> },
+  { id: 'notes', label: 'Заметки', icon: <ListChecks size={18} /> },
+  { id: 'settings', label: 'Настройки', icon: <Settings size={18} /> },
+]
+
+const phraseLibrary = [
+  {
+    id: 'hello',
+    zh: '你好',
+    pinyin: 'Nǐ hǎo',
+    ru: 'Здравствуйте',
+  },
+  {
+    id: 'thanks',
+    zh: '谢谢',
+    pinyin: 'Xiè xie',
+    ru: 'Спасибо',
+  },
+  {
+    id: 'how-much',
+    zh: '这个多少钱？',
+    pinyin: 'Zhège duōshǎo qián?',
+    ru: 'Сколько это стоит?',
+  },
+  {
+    id: 'no-spicy',
+    zh: '不要辣',
+    pinyin: 'Bù yào là',
+    ru: 'Не остро, пожалуйста',
+  },
+  {
+    id: 'three-people',
+    zh: '三个人',
+    pinyin: 'Sān gè rén',
+    ru: 'Три человека',
+  },
+  {
+    id: 'toilet',
+    zh: '洗手间在哪里？',
+    pinyin: 'Xǐshǒujiān zài nǎlǐ?',
+    ru: 'Где туалет?',
+  },
+  {
+    id: 'card',
+    zh: '可以刷卡吗？',
+    pinyin: 'Kěyǐ shuākǎ ma?',
+    ru: 'Можно оплатить картой?',
+  },
+  {
+    id: 'taxi',
+    zh: '请帮我叫车',
+    pinyin: 'Qǐng bāng wǒ jiào chē',
+    ru: 'Помогите вызвать такси',
+  },
+  {
+    id: 'slowly',
+    zh: '请说慢一点',
+    pinyin: 'Qǐng shuō màn yīdiǎn',
+    ru: 'Говорите помедленнее',
+  },
+  {
+    id: 'station',
+    zh: '火车站怎么走？',
+    pinyin: 'Huǒchēzhàn zěnme zǒu?',
+    ru: 'Как пройти к вокзалу?',
+  },
+]
 
 export function TripApp({ initialState }: TripAppProps) {
   const router = useRouter()
   const [state, setState] = useState(initialState)
   const [activeTab, setActiveTab] = useLocalStorageState<TabId>(
     'china-trip.active-tab',
-    'route',
+    'today',
     isTabId,
   )
   const [currentTravelerId, setCurrentTravelerId] =
@@ -103,6 +184,7 @@ export function TripApp({ initialState }: TripAppProps) {
     'saved',
   )
   const saveVersion = useRef(0)
+  const isOnline = useOnlineStatus()
 
   const currentTraveler =
     state.travelers.find((traveler) => traveler.id === currentTravelerId) ??
@@ -201,6 +283,10 @@ export function TripApp({ initialState }: TripAppProps) {
                 : 'Сохранено'}
           </span>
         </div>
+        <div className={`network-pill ${isOnline ? 'online' : 'offline'}`}>
+          {isOnline ? <Wifi size={16} /> : <WifiOff size={16} />}
+          <span>{isOnline ? 'Онлайн' : 'Офлайн'}</span>
+        </div>
       </section>
 
       <section className="overview-grid" aria-label="Краткая сводка">
@@ -208,14 +294,20 @@ export function TripApp({ initialState }: TripAppProps) {
           <CalendarDays size={18} />
           <div>
             <span>Ближайший день</span>
-            <strong>{nextDay ? `${formatShortDate(nextDay.date)} · ${nextDay.city}` : '—'}</strong>
+            <strong>
+              {nextDay ? `${formatShortDate(nextDay.date)} · ${nextDay.city}` : '—'}
+            </strong>
           </div>
         </article>
         <article className="overview-card">
           <Building2 size={18} />
           <div>
             <span>База</span>
-            <strong>{nextHotel ? `${nextHotel.city} · ${formatShortDate(nextHotel.checkIn)}` : '—'}</strong>
+            <strong>
+              {nextHotel
+                ? `${nextHotel.city} · ${formatShortDate(nextHotel.checkIn)}`
+                : '—'}
+            </strong>
           </div>
         </article>
         <article className="overview-card">
@@ -234,17 +326,14 @@ export function TripApp({ initialState }: TripAppProps) {
       </section>
 
       <main className="content-area">
+        {activeTab === 'today' ? (
+          <TodayView state={state} commit={commit} isOnline={isOnline} />
+        ) : null}
         {activeTab === 'route' ? (
           <RouteView state={state} commit={commit} />
         ) : null}
         {activeTab === 'places' ? (
           <PlacesView state={state} commit={commit} />
-        ) : null}
-        {activeTab === 'hotels' ? (
-          <HotelsView state={state} commit={commit} />
-        ) : null}
-        {activeTab === 'tickets' ? (
-          <TicketsView state={state} commit={commit} />
         ) : null}
         {activeTab === 'expenses' ? (
           <ExpensesView
@@ -253,11 +342,8 @@ export function TripApp({ initialState }: TripAppProps) {
             currentTravelerId={currentTravelerId}
           />
         ) : null}
-        {activeTab === 'notes' ? (
-          <NotesView state={state} commit={commit} />
-        ) : null}
-        {activeTab === 'settings' ? (
-          <SettingsView
+        {activeTab === 'more' ? (
+          <MoreView
             state={state}
             commit={commit}
             currentTravelerId={currentTravelerId}
@@ -286,6 +372,255 @@ export function TripApp({ initialState }: TripAppProps) {
         ))}
       </nav>
     </div>
+  )
+}
+
+function TodayView({
+  state,
+  commit,
+  isOnline,
+}: {
+  state: TripState
+  commit: Commit
+  isOnline: boolean
+}) {
+  const sortedDays = [...state.days].sort((left, right) =>
+    left.date.localeCompare(right.date),
+  )
+  const today = todayDate()
+  const dayIndex = sortedDays.findIndex((day) => day.date >= today)
+  const activeDay =
+    sortedDays.find((day) => day.date === today) ??
+    (dayIndex >= 0 ? sortedDays[dayIndex] : sortedDays[sortedDays.length - 1])
+  const activeDayIndex = activeDay
+    ? sortedDays.findIndex((day) => day.id === activeDay.id)
+    : -1
+  const dayItems = activeDay
+    ? state.dayItems
+        .filter((item) => item.dayId === activeDay.id)
+        .sort((left, right) => left.sortOrder - right.sortOrder)
+    : []
+  const activeHotel = activeDay
+    ? state.hotels.find(
+        (hotel) => hotel.checkIn <= activeDay.date && hotel.checkOut >= activeDay.date,
+      )
+    : undefined
+  const dayTickets = activeDay
+    ? state.tickets.filter(
+        (ticket) =>
+          ticket.departAt.slice(0, 10) === activeDay.date ||
+          dayItems.some(
+            (item) => item.kind === 'ticket' && item.refId === ticket.id,
+          ),
+      )
+    : []
+  const openChecklistItems = state.checklistItems
+    .filter((item) => !item.done)
+    .sort((left, right) => left.sortOrder - right.sortOrder)
+    .slice(0, 5)
+  const phrase =
+    phraseLibrary[
+      Math.max(activeDayIndex, 0) % Math.max(phraseLibrary.length, 1)
+    ]
+
+  function toggleChecklistItem(itemId: string, done: boolean) {
+    commit((previous) => ({
+      ...previous,
+      checklistItems: previous.checklistItems.map((item) =>
+        item.id === itemId ? { ...item, done } : item,
+      ),
+    }))
+  }
+
+  return (
+    <section className="view-stack" aria-labelledby="today-title">
+      <SectionHeading
+        eyebrow={activeDay?.date === today ? 'Сегодня' : 'Ближайший день'}
+        title={activeDay ? activeDay.city : 'План'}
+        aside={activeDay ? formatWeekday(activeDay.date) : undefined}
+      />
+
+      <div className="today-hero">
+        <article className="today-focus-card">
+          <p className="eyebrow">Фокус</p>
+          <h3>{activeDay?.note || 'Открыть маршрут и выбрать первый шаг'}</h3>
+          <div className="today-pills">
+            <span>{dayItems.length} в плане</span>
+            <span>{dayTickets.length} переездов</span>
+            <span>{isOnline ? 'Синхронизация доступна' : 'Офлайн-режим'}</span>
+          </div>
+        </article>
+        <article className="today-side-card">
+          <Building2 size={20} />
+          <div>
+            <span>База</span>
+            <strong>{activeHotel?.name ?? 'Не привязана'}</strong>
+            <p>{activeHotel ? activeHotel.city : 'Добавь отель в разделе Ещё'}</p>
+          </div>
+        </article>
+        <article className="today-side-card">
+          {dayTickets[0] ? ticketIcon(dayTickets[0].kind) : <Ticket size={20} />}
+          <div>
+            <span>Переезд</span>
+            <strong>
+              {dayTickets[0]
+                ? `${dayTickets[0].fromCity} → ${dayTickets[0].toCity}`
+                : 'Нет переезда'}
+            </strong>
+            <p>{dayTickets[0] ? formatDateTime(dayTickets[0].departAt) : 'День без билетов'}</p>
+          </div>
+        </article>
+      </div>
+
+      <div className="today-grid">
+        <article className="hub-card">
+          <div className="title-row">
+            <div>
+              <p className="eyebrow">План</p>
+              <h3>На день</h3>
+            </div>
+            <MapPin size={20} />
+          </div>
+          <div className="compact-list">
+            {dayItems.length ? (
+              dayItems.map((item) => (
+                <CompactDayItem key={item.id} item={item} state={state} />
+              ))
+            ) : (
+              <p className="empty-text">Пока нет привязанных мест и заметок</p>
+            )}
+          </div>
+        </article>
+
+        <article className="hub-card">
+          <div className="title-row">
+            <div>
+              <p className="eyebrow">Чеклист</p>
+              <h3>Не забыть</h3>
+            </div>
+            <ListChecks size={20} />
+          </div>
+          <div className="checklist-items compact-checklist">
+            {openChecklistItems.length ? (
+              openChecklistItems.map((item) => (
+                <label className="check-item" key={item.id}>
+                  <input
+                    type="checkbox"
+                    checked={item.done}
+                    onChange={(event) =>
+                      toggleChecklistItem(item.id, event.target.checked)
+                    }
+                  />
+                  <span>{item.text}</span>
+                </label>
+              ))
+            ) : (
+              <p className="empty-text">Все открытые пункты закрыты</p>
+            )}
+          </div>
+        </article>
+
+        <article className="hub-card">
+          <div className="title-row">
+            <div>
+              <p className="eyebrow">Фраза дня</p>
+              <h3>{phrase.zh}</h3>
+            </div>
+            <button
+              className="icon-button quiet"
+              type="button"
+              title="Произнести"
+              onClick={() => speakChinese(phrase.zh)}
+            >
+              <Volume2 size={18} />
+            </button>
+          </div>
+          <p className="phrase-pinyin">{phrase.pinyin}</p>
+          <p>{phrase.ru}</p>
+        </article>
+
+        <article className="hub-card">
+          <div className="title-row">
+            <div>
+              <p className="eyebrow">PWA</p>
+              <h3>{isOnline ? 'Готовимся к офлайну' : 'Можно без сети'}</h3>
+            </div>
+            {isOnline ? <Wifi size={20} /> : <WifiOff size={20} />}
+          </div>
+          <p className="muted-text">
+            Добавь сайт на экран телефона и открой его перед поездкой: основные
+            файлы приложения будут доступны даже при плохой связи.
+          </p>
+        </article>
+      </div>
+    </section>
+  )
+}
+
+function MoreView({
+  state,
+  commit,
+  currentTravelerId,
+  onTravelerChange,
+  onStateReplace,
+  onLock,
+}: {
+  state: TripState
+  commit: Commit
+  currentTravelerId: TravelerId
+  onTravelerChange: (travelerId: TravelerId) => void
+  onStateReplace: (state: TripState) => void
+  onLock: () => void
+}) {
+  const [activeSection, setActiveSection] =
+    useLocalStorageState<MoreSectionId>(
+      'china-trip.more-section',
+      'documents',
+      isMoreSectionId,
+    )
+
+  return (
+    <section className="view-stack" aria-labelledby="more-title">
+      <div className="more-switcher" role="tablist" aria-label="Дополнительно">
+        {moreSections.map((section) => (
+          <button
+            key={section.id}
+            type="button"
+            className={activeSection === section.id ? 'active' : ''}
+            onClick={() => setActiveSection(section.id)}
+          >
+            {section.icon}
+            <span>{section.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {activeSection === 'documents' ? (
+        <DocumentsView state={state} commit={commit} />
+      ) : null}
+      {activeSection === 'phrases' ? (
+        <PhrasesView state={state} commit={commit} />
+      ) : null}
+      {activeSection === 'hotels' ? (
+        <HotelsView state={state} commit={commit} />
+      ) : null}
+      {activeSection === 'tickets' ? (
+        <TicketsView state={state} commit={commit} />
+      ) : null}
+      {activeSection === 'notes' ? (
+        <NotesView state={state} commit={commit} />
+      ) : null}
+      {activeSection === 'settings' ? (
+        <SettingsView
+          state={state}
+          commit={commit}
+          currentTravelerId={currentTravelerId}
+          onTravelerChange={onTravelerChange}
+          onStateReplace={onStateReplace}
+          onLock={onLock}
+        />
+      ) : null}
+    </section>
   )
 }
 
@@ -385,23 +720,27 @@ function RouteView({ state, commit }: { state: TripState; commit: Commit }) {
         aside={`${sortedDays.length} ${pluralRu(sortedDays.length, ['день', 'дня', 'дней'])}`}
       />
 
-      <form className="quick-form" onSubmit={addDay}>
-        <label>
-          <span>Дата</span>
-          <input name="date" type="date" required />
-        </label>
-        <label>
-          <span>Город</span>
-          <input name="city" placeholder="Гуанчжоу" required />
-        </label>
-        <label className="wide-field">
-          <span>Заметка</span>
-          <input name="note" placeholder="Переезд, бронь, план" />
-        </label>
-        <button className="icon-button primary" type="submit" title="Добавить день">
-          <CalendarPlus size={20} />
-        </button>
-      </form>
+      <RouteMapPanel state={state} />
+
+      <CreateDetails title="Добавить день" icon={<CalendarPlus size={18} />}>
+        <form className="quick-form" onSubmit={addDay}>
+          <label>
+            <span>Дата</span>
+            <input name="date" type="date" required />
+          </label>
+          <label>
+            <span>Город</span>
+            <input name="city" placeholder="Гуанчжоу" required />
+          </label>
+          <label className="wide-field">
+            <span>Заметка</span>
+            <input name="note" placeholder="Переезд, бронь, план" />
+          </label>
+          <button className="icon-button primary" type="submit" title="Добавить день">
+            <CalendarPlus size={20} />
+          </button>
+        </form>
+      </CreateDetails>
 
       <div className="timeline">
         {sortedDays.map((day) => {
@@ -589,54 +928,50 @@ function PlacesView({ state, commit }: { state: TripState; commit: Commit }) {
         title="Места"
         aside={`${state.places.length} ${pluralRu(state.places.length, ['точка', 'точки', 'точек'])}`}
       />
-      <form className="quick-form" onSubmit={addPlace}>
-        <label>
-          <span>Название</span>
-          <input name="name" placeholder="Чайный рынок" required />
-        </label>
-        <label>
-          <span>Город</span>
-          <input name="city" placeholder="Шанхай" required />
-        </label>
-        <label>
-          <span>Категория</span>
-          <select name="category" defaultValue="sight">
-            <option value="sight">Достопримечательность</option>
-            <option value="food">Еда</option>
-            <option value="shopping">Шопинг</option>
-          </select>
-        </label>
-        <label>
-          <span>День</span>
-          <DaySelect days={state.days} />
-        </label>
-        <label>
-          <span>Карта</span>
-          <input name="url" placeholder="https://maps..." />
-        </label>
-        <label>
-          <span>Фото</span>
-          <input name="photoUrl" placeholder="https://..." />
-        </label>
-        <label className="wide-field">
-          <span>Заметка</span>
-          <input name="note" placeholder="Что важно помнить" />
-        </label>
-        <button className="icon-button primary" type="submit" title="Добавить место">
-          <Plus size={20} />
-        </button>
-      </form>
+      <CreateDetails title="Добавить место" icon={<Plus size={18} />}>
+        <form className="quick-form" onSubmit={addPlace}>
+          <label>
+            <span>Название</span>
+            <input name="name" placeholder="Чайный рынок" required />
+          </label>
+          <label>
+            <span>Город</span>
+            <input name="city" placeholder="Шанхай" required />
+          </label>
+          <label>
+            <span>Категория</span>
+            <select name="category" defaultValue="sight">
+              <option value="sight">Достопримечательность</option>
+              <option value="food">Еда</option>
+              <option value="shopping">Шопинг</option>
+            </select>
+          </label>
+          <label>
+            <span>День</span>
+            <DaySelect days={state.days} />
+          </label>
+          <label>
+            <span>Карта</span>
+            <input name="url" placeholder="https://maps..." />
+          </label>
+          <label>
+            <span>Фото</span>
+            <input name="photoUrl" placeholder="https://..." />
+          </label>
+          <label className="wide-field">
+            <span>Заметка</span>
+            <input name="note" placeholder="Что важно помнить" />
+          </label>
+          <button className="icon-button primary" type="submit" title="Добавить место">
+            <Plus size={20} />
+          </button>
+        </form>
+      </CreateDetails>
 
       <div className="card-grid">
         {state.places.map((place) => (
           <article className="place-card" key={place.id}>
-            {place.photoUrl ? (
-              <img src={place.photoUrl} alt="" />
-            ) : (
-              <div className="image-placeholder">
-                <ImageIcon size={24} />
-              </div>
-            )}
+            <PlaceImage src={place.photoUrl} />
             <div className="card-body">
               <div className="title-row">
                 <div>
@@ -823,55 +1158,57 @@ function HotelsView({ state, commit }: { state: TripState; commit: Commit }) {
         title="Отели"
         aside={`${state.hotels.length} ${pluralRu(state.hotels.length, ['бронь', 'брони', 'броней'])}`}
       />
-      <form className="quick-form" onSubmit={addHotel}>
-        <label>
-          <span>Отель</span>
-          <input name="name" placeholder="Название" required />
-        </label>
-        <label>
-          <span>Город</span>
-          <input name="city" required />
-        </label>
-        <label>
-          <span>Заезд</span>
-          <input name="checkIn" type="date" />
-        </label>
-        <label>
-          <span>Выезд</span>
-          <input name="checkOut" type="date" />
-        </label>
-        <label>
-          <span>Цена</span>
-          <input name="price" type="number" min="0" step="0.01" />
-        </label>
-        <label>
-          <span>Валюта</span>
-          <CurrencySelect />
-        </label>
-        <label>
-          <span>День</span>
-          <DaySelect days={state.days} />
-        </label>
-        <label className="wide-field">
-          <span>Адрес</span>
-          <input name="address" placeholder="Район, улица" />
-        </label>
-        <label>
-          <span>Бронь</span>
-          <input name="url" placeholder="https://..." />
-        </label>
-        <label>
-          <span>Подтверждение</span>
-          <input name="confirmationUrl" placeholder="Файл или скрин" />
-        </label>
-        <label className="wide-field">
-          <span>Заметка</span>
-          <input name="note" />
-        </label>
-        <button className="icon-button primary" type="submit" title="Добавить отель">
-          <Plus size={20} />
-        </button>
-      </form>
+      <CreateDetails title="Добавить отель" icon={<Plus size={18} />}>
+        <form className="quick-form" onSubmit={addHotel}>
+          <label>
+            <span>Отель</span>
+            <input name="name" placeholder="Название" required />
+          </label>
+          <label>
+            <span>Город</span>
+            <input name="city" required />
+          </label>
+          <label>
+            <span>Заезд</span>
+            <input name="checkIn" type="date" />
+          </label>
+          <label>
+            <span>Выезд</span>
+            <input name="checkOut" type="date" />
+          </label>
+          <label>
+            <span>Цена</span>
+            <input name="price" type="number" min="0" step="0.01" />
+          </label>
+          <label>
+            <span>Валюта</span>
+            <CurrencySelect />
+          </label>
+          <label>
+            <span>День</span>
+            <DaySelect days={state.days} />
+          </label>
+          <label className="wide-field">
+            <span>Адрес</span>
+            <input name="address" placeholder="Район, улица" />
+          </label>
+          <label>
+            <span>Бронь</span>
+            <input name="url" placeholder="https://..." />
+          </label>
+          <label>
+            <span>Подтверждение</span>
+            <input name="confirmationUrl" placeholder="Файл или скрин" />
+          </label>
+          <label className="wide-field">
+            <span>Заметка</span>
+            <input name="note" />
+          </label>
+          <button className="icon-button primary" type="submit" title="Добавить отель">
+            <Plus size={20} />
+          </button>
+        </form>
+      </CreateDetails>
 
       <div className="list-stack">
         {state.hotels.map((hotel) => (
@@ -1074,63 +1411,65 @@ function TicketsView({ state, commit }: { state: TripState; commit: Commit }) {
         title="Билеты"
         aside={`${state.tickets.length} ${pluralRu(state.tickets.length, ['запись', 'записи', 'записей'])}`}
       />
-      <form className="quick-form" onSubmit={addTicket}>
-        <label>
-          <span>Тип</span>
-          <select name="kind" defaultValue="train">
-            <option value="flight">Самолёт</option>
-            <option value="train">Поезд</option>
-            <option value="metro-pass">Метро-пасс</option>
-          </select>
-        </label>
-        <label>
-          <span>Откуда</span>
-          <input name="fromCity" required />
-        </label>
-        <label>
-          <span>Куда</span>
-          <input name="toCity" required />
-        </label>
-        <label>
-          <span>Отправление</span>
-          <input name="departAt" type="datetime-local" />
-        </label>
-        <label>
-          <span>Прибытие</span>
-          <input name="arriveAt" type="datetime-local" />
-        </label>
-        <label>
-          <span>Номер</span>
-          <input name="refNumber" />
-        </label>
-        <label>
-          <span>Места</span>
-          <input name="seat" />
-        </label>
-        <label>
-          <span>Цена</span>
-          <input name="price" type="number" min="0" step="0.01" />
-        </label>
-        <label>
-          <span>Валюта</span>
-          <CurrencySelect />
-        </label>
-        <label>
-          <span>День</span>
-          <DaySelect days={state.days} />
-        </label>
-        <label>
-          <span>Ссылка</span>
-          <input name="url" placeholder="https://..." />
-        </label>
-        <label>
-          <span>Файл</span>
-          <input name="fileUrl" placeholder="Файл или скрин" />
-        </label>
-        <button className="icon-button primary" type="submit" title="Добавить билет">
-          <Plus size={20} />
-        </button>
-      </form>
+      <CreateDetails title="Добавить билет" icon={<Plus size={18} />}>
+        <form className="quick-form" onSubmit={addTicket}>
+          <label>
+            <span>Тип</span>
+            <select name="kind" defaultValue="train">
+              <option value="flight">Самолёт</option>
+              <option value="train">Поезд</option>
+              <option value="metro-pass">Метро-пасс</option>
+            </select>
+          </label>
+          <label>
+            <span>Откуда</span>
+            <input name="fromCity" required />
+          </label>
+          <label>
+            <span>Куда</span>
+            <input name="toCity" required />
+          </label>
+          <label>
+            <span>Отправление</span>
+            <input name="departAt" type="datetime-local" />
+          </label>
+          <label>
+            <span>Прибытие</span>
+            <input name="arriveAt" type="datetime-local" />
+          </label>
+          <label>
+            <span>Номер</span>
+            <input name="refNumber" />
+          </label>
+          <label>
+            <span>Места</span>
+            <input name="seat" />
+          </label>
+          <label>
+            <span>Цена</span>
+            <input name="price" type="number" min="0" step="0.01" />
+          </label>
+          <label>
+            <span>Валюта</span>
+            <CurrencySelect />
+          </label>
+          <label>
+            <span>День</span>
+            <DaySelect days={state.days} />
+          </label>
+          <label>
+            <span>Ссылка</span>
+            <input name="url" placeholder="https://..." />
+          </label>
+          <label>
+            <span>Файл</span>
+            <input name="fileUrl" placeholder="Файл или скрин" />
+          </label>
+          <button className="icon-button primary" type="submit" title="Добавить билет">
+            <Plus size={20} />
+          </button>
+        </form>
+      </CreateDetails>
 
       <div className="list-stack">
         {state.tickets.map((ticket) => (
@@ -1457,50 +1796,52 @@ function ExpensesView({
         )}
       </div>
 
-      <form className="quick-form" onSubmit={addExpense}>
-        <label>
-          <span>Кто платил</span>
-          <select name="payerId" defaultValue={currentTravelerId}>
+      <CreateDetails title="Добавить трату" icon={<CircleDollarSign size={18} />}>
+        <form className="quick-form" onSubmit={addExpense}>
+          <label>
+            <span>Кто платил</span>
+            <select name="payerId" defaultValue={currentTravelerId}>
+              {state.travelers.map((traveler) => (
+                <option key={traveler.id} value={traveler.id}>
+                  {traveler.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Сумма</span>
+            <input name="amount" type="number" min="0" step="0.01" required />
+          </label>
+          <label>
+            <span>Валюта</span>
+            <CurrencySelect />
+          </label>
+          <label>
+            <span>Категория</span>
+            <input name="category" placeholder="Еда" />
+          </label>
+          <label>
+            <span>Дата</span>
+            <input name="spentAt" type="date" defaultValue={todayDate()} />
+          </label>
+          <label className="wide-field">
+            <span>Комментарий</span>
+            <input name="description" placeholder="Ужин, билеты, такси" />
+          </label>
+          <fieldset className="wide-field checkbox-row">
+            <legend>В доле</legend>
             {state.travelers.map((traveler) => (
-              <option key={traveler.id} value={traveler.id}>
-                {traveler.name}
-              </option>
+              <label key={traveler.id}>
+                <input name={`share-${traveler.id}`} type="checkbox" defaultChecked />
+                <span>{traveler.name}</span>
+              </label>
             ))}
-          </select>
-        </label>
-        <label>
-          <span>Сумма</span>
-          <input name="amount" type="number" min="0" step="0.01" required />
-        </label>
-        <label>
-          <span>Валюта</span>
-          <CurrencySelect />
-        </label>
-        <label>
-          <span>Категория</span>
-          <input name="category" placeholder="Еда" />
-        </label>
-        <label>
-          <span>Дата</span>
-          <input name="spentAt" type="date" defaultValue={todayDate()} />
-        </label>
-        <label className="wide-field">
-          <span>Комментарий</span>
-          <input name="description" placeholder="Ужин, билеты, такси" />
-        </label>
-        <fieldset className="wide-field checkbox-row">
-          <legend>В доле</legend>
-          {state.travelers.map((traveler) => (
-            <label key={traveler.id}>
-              <input name={`share-${traveler.id}`} type="checkbox" defaultChecked />
-              <span>{traveler.name}</span>
-            </label>
-          ))}
-        </fieldset>
-        <button className="icon-button primary" type="submit" title="Добавить трату">
-          <CircleDollarSign size={20} />
-        </button>
-      </form>
+          </fieldset>
+          <button className="icon-button primary" type="submit" title="Добавить трату">
+            <CircleDollarSign size={20} />
+          </button>
+        </form>
+      </CreateDetails>
 
       <div className="list-stack">
         {state.expenses.map((expense) => {
@@ -1708,24 +2049,26 @@ function NotesView({ state, commit }: { state: TripState; commit: Commit }) {
         title="Заметки"
         aside={`${state.checklistItems.filter((item) => !item.done).length} открыто`}
       />
-      <form className="quick-form" onSubmit={addChecklist}>
-        <label>
-          <span>Список</span>
-          <input name="title" placeholder="Аптечка" required />
-        </label>
-        <label>
-          <span>Тип</span>
-          <select name="kind" defaultValue="notes">
-            <option value="notes">Заметки</option>
-            <option value="packing">Что взять</option>
-            <option value="visa">Визы</option>
-            <option value="phrases">Фразы</option>
-          </select>
-        </label>
-        <button className="icon-button primary" type="submit" title="Добавить список">
-          <Plus size={20} />
-        </button>
-      </form>
+      <CreateDetails title="Добавить список" icon={<Plus size={18} />}>
+        <form className="quick-form" onSubmit={addChecklist}>
+          <label>
+            <span>Список</span>
+            <input name="title" placeholder="Аптечка" required />
+          </label>
+          <label>
+            <span>Тип</span>
+            <select name="kind" defaultValue="notes">
+              <option value="notes">Заметки</option>
+              <option value="packing">Что взять</option>
+              <option value="visa">Визы</option>
+              <option value="phrases">Фразы</option>
+            </select>
+          </label>
+          <button className="icon-button primary" type="submit" title="Добавить список">
+            <Plus size={20} />
+          </button>
+        </form>
+      </CreateDetails>
 
       <div className="checklist-grid">
         {state.checklists.map((checklist) => {
@@ -1866,6 +2209,443 @@ function NotesView({ state, commit }: { state: TripState; commit: Commit }) {
           )
         })}
       </div>
+    </section>
+  )
+}
+
+function DocumentsView({ state, commit }: { state: TripState; commit: Commit }) {
+  const [editingDocId, setEditingDocId] = useState<string | null>(null)
+  const visaChecklist = state.checklists.find((checklist) => checklist.kind === 'visa')
+  const visaItems = visaChecklist
+    ? state.checklistItems
+        .filter((item) => item.checklistId === visaChecklist.id)
+        .sort((left, right) => left.sortOrder - right.sortOrder)
+    : []
+  const linkedDocs = [
+    ...state.hotels.map((hotel) => ({
+      id: `hotel-${hotel.id}`,
+      source: 'hotel' as const,
+      refId: hotel.id,
+      title: hotel.name,
+      meta: `${hotel.city} · ${formatShortDate(hotel.checkIn)}-${formatShortDate(hotel.checkOut)}`,
+      href: hotel.confirmationUrl || hotel.url,
+      editValue: hotel.confirmationUrl,
+      icon: <Building2 size={22} />,
+      label: 'Бронь отеля',
+    })),
+    ...state.tickets.map((ticket) => ({
+      id: `ticket-${ticket.id}`,
+      source: 'ticket' as const,
+      refId: ticket.id,
+      title: `${ticket.fromCity} → ${ticket.toCity}`,
+      meta: `${ticketKindLabel(ticket.kind)} · ${formatDateTime(ticket.departAt)}`,
+      href: ticket.fileUrl || ticket.url,
+      editValue: ticket.fileUrl,
+      icon: ticketIcon(ticket.kind),
+      label: 'Билет или QR',
+    })),
+  ]
+
+  function addVisaDocument(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = event.currentTarget
+    const data = new FormData(form)
+    const title = getFormString(data, 'title')
+    const url = getFormString(data, 'url')
+    if (!title) return
+
+    commit((previous) => {
+      const checklist =
+        previous.checklists.find((candidate) => candidate.kind === 'visa') ??
+        ({
+          id: makeId('checklist'),
+          title: 'Визы и документы',
+          kind: 'visa',
+        } satisfies Checklist)
+      const hasChecklist = previous.checklists.some(
+        (candidate) => candidate.id === checklist.id,
+      )
+
+      return {
+        ...previous,
+        checklists: hasChecklist
+          ? previous.checklists
+          : [...previous.checklists, checklist],
+        checklistItems: [
+          ...previous.checklistItems,
+          {
+            id: makeId('check-item'),
+            checklistId: checklist.id,
+            text: url ? `${title} — ${url}` : title,
+            done: false,
+            sortOrder: nextChecklistOrder(previous.checklistItems, checklist.id),
+          },
+        ],
+      }
+    })
+    form.reset()
+  }
+
+  function saveLinkedDocument(
+    event: FormEvent<HTMLFormElement>,
+    source: 'hotel' | 'ticket',
+    refId: string,
+  ) {
+    event.preventDefault()
+    const value = getFormString(new FormData(event.currentTarget), 'documentUrl')
+
+    commit((previous) =>
+      source === 'hotel'
+        ? {
+            ...previous,
+            hotels: previous.hotels.map((hotel) =>
+              hotel.id === refId
+                ? { ...hotel, confirmationUrl: value }
+                : hotel,
+            ),
+          }
+        : {
+            ...previous,
+            tickets: previous.tickets.map((ticket) =>
+              ticket.id === refId ? { ...ticket, fileUrl: value } : ticket,
+            ),
+          },
+    )
+    setEditingDocId(null)
+  }
+
+  function updateVisaDocument(event: FormEvent<HTMLFormElement>, itemId: string) {
+    event.preventDefault()
+    const text = getFormString(new FormData(event.currentTarget), 'text')
+    if (!text) return
+
+    commit((previous) => ({
+      ...previous,
+      checklistItems: previous.checklistItems.map((item) =>
+        item.id === itemId ? { ...item, text } : item,
+      ),
+    }))
+    setEditingDocId(null)
+  }
+
+  return (
+    <section className="view-stack" aria-labelledby="documents-title">
+      <SectionHeading
+        eyebrow="QR и фото"
+        title="Документы"
+        aside={`${linkedDocs.length + visaItems.length} ${pluralRu(linkedDocs.length + visaItems.length, ['запись', 'записи', 'записей'])}`}
+      />
+
+      <CreateDetails title="Добавить документ" icon={<QrCode size={18} />}>
+        <form className="quick-form" onSubmit={addVisaDocument}>
+          <label>
+            <span>Название</span>
+            <input name="title" placeholder="Виза, страховка, QR" required />
+          </label>
+          <label>
+            <span>Ссылка/пометка</span>
+            <input name="url" placeholder="Фото, файл или где лежит" />
+          </label>
+          <button className="icon-button primary" type="submit" title="Добавить">
+            <Plus size={20} />
+          </button>
+        </form>
+      </CreateDetails>
+
+      <div className="document-grid">
+        {linkedDocs.map((doc) => (
+          <article className="document-card" key={doc.id}>
+            <div className={`document-preview ${doc.href ? 'ready' : ''}`}>
+              {doc.href ? <QrCode size={34} /> : <ImageIcon size={34} />}
+            </div>
+            <div className="document-body">
+              <p className="tag">{doc.label}</p>
+              <h3>{doc.title}</h3>
+              <p className="muted-text">{doc.meta}</p>
+              {editingDocId === doc.id ? (
+                <form
+                  className="inline-edit-form"
+                  onSubmit={(event) =>
+                    saveLinkedDocument(event, doc.source, doc.refId)
+                  }
+                >
+                  <input
+                    name="documentUrl"
+                    defaultValue={doc.editValue}
+                    placeholder="Ссылка на QR/скрин"
+                    autoFocus
+                  />
+                  <SaveCancelActions onCancel={() => setEditingDocId(null)} />
+                </form>
+              ) : (
+                <div className="card-actions">
+                  <button
+                    className="chip-button"
+                    type="button"
+                    onClick={() => setEditingDocId(doc.id)}
+                  >
+                    <Pencil size={14} />
+                    <span>{doc.href ? 'Изменить' : 'Добавить'}</span>
+                  </button>
+                  <ExternalLinkButton href={doc.href} label="Открыть" />
+                </div>
+              )}
+            </div>
+          </article>
+        ))}
+
+        {visaItems.map((item) => (
+          <article className="document-card" key={item.id}>
+            <div className={`document-preview ${item.done ? '' : 'ready'}`}>
+              <KeyRound size={34} />
+            </div>
+            <div className="document-body">
+              <p className="tag">Документ</p>
+              {editingDocId === item.id ? (
+                <form
+                  className="inline-edit-form"
+                  onSubmit={(event) => updateVisaDocument(event, item.id)}
+                >
+                  <input name="text" defaultValue={item.text} autoFocus />
+                  <SaveCancelActions onCancel={() => setEditingDocId(null)} />
+                </form>
+              ) : (
+                <>
+                  <h3>{documentTitle(item.text)}</h3>
+                  <p className="muted-text">{documentMeta(item.text)}</p>
+                  <div className="card-actions">
+                    <button
+                      className="chip-button"
+                      type="button"
+                      onClick={() => setEditingDocId(item.id)}
+                    >
+                      <Pencil size={14} />
+                      <span>Править</span>
+                    </button>
+                    <button
+                      className="chip-button"
+                      type="button"
+                      onClick={() =>
+                        commit((previous) => ({
+                          ...previous,
+                          checklistItems: previous.checklistItems.filter(
+                            (candidate) => candidate.id !== item.id,
+                          ),
+                        }))
+                      }
+                    >
+                      <Trash2 size={14} />
+                      <span>Удалить</span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function PhrasesView({ state, commit }: { state: TripState; commit: Commit }) {
+  const [editingPhraseId, setEditingPhraseId] = useState<string | null>(null)
+  const phraseChecklist = state.checklists.find(
+    (checklist) => checklist.kind === 'phrases',
+  )
+  const savedPhrases = phraseChecklist
+    ? state.checklistItems
+        .filter((item) => item.checklistId === phraseChecklist.id)
+        .sort((left, right) => left.sortOrder - right.sortOrder)
+    : []
+
+  function addPhrase(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = event.currentTarget
+    const data = new FormData(form)
+    const zh = getFormString(data, 'zh')
+    const ru = getFormString(data, 'ru')
+    const pinyin = getFormString(data, 'pinyin')
+    if (!zh || !ru) return
+
+    commit((previous) => {
+      const checklist =
+        previous.checklists.find((candidate) => candidate.kind === 'phrases') ??
+        ({
+          id: makeId('checklist'),
+          title: 'Полезные фразы',
+          kind: 'phrases',
+        } satisfies Checklist)
+      const hasChecklist = previous.checklists.some(
+        (candidate) => candidate.id === checklist.id,
+      )
+
+      return {
+        ...previous,
+        checklists: hasChecklist
+          ? previous.checklists
+          : [...previous.checklists, checklist],
+        checklistItems: [
+          ...previous.checklistItems,
+          {
+            id: makeId('check-item'),
+            checklistId: checklist.id,
+            text: formatPhraseText({ zh, pinyin, ru }),
+            done: false,
+            sortOrder: nextChecklistOrder(previous.checklistItems, checklist.id),
+          },
+        ],
+      }
+    })
+    form.reset()
+  }
+
+  function updatePhrase(event: FormEvent<HTMLFormElement>, itemId: string) {
+    event.preventDefault()
+    const data = new FormData(event.currentTarget)
+    const zh = getFormString(data, 'zh')
+    const ru = getFormString(data, 'ru')
+    const pinyin = getFormString(data, 'pinyin')
+    if (!zh || !ru) return
+
+    commit((previous) => ({
+      ...previous,
+      checklistItems: previous.checklistItems.map((item) =>
+        item.id === itemId
+          ? { ...item, text: formatPhraseText({ zh, pinyin, ru }) }
+          : item,
+      ),
+    }))
+    setEditingPhraseId(null)
+  }
+
+  return (
+    <section className="view-stack" aria-labelledby="phrases-title">
+      <SectionHeading
+        eyebrow="Китайский"
+        title="Быстрые фразы"
+        aside={`${phraseLibrary.length + savedPhrases.length} фраз`}
+      />
+
+      <CreateDetails title="Добавить свою фразу" icon={<Languages size={18} />}>
+        <form className="quick-form" onSubmit={addPhrase}>
+          <label>
+            <span>Китайский</span>
+            <input name="zh" placeholder="你好" required />
+          </label>
+          <label>
+            <span>Пиньинь</span>
+            <input name="pinyin" placeholder="Nǐ hǎo" />
+          </label>
+          <label className="wide-field">
+            <span>Перевод</span>
+            <input name="ru" placeholder="Здравствуйте" required />
+          </label>
+          <button className="icon-button primary" type="submit" title="Добавить">
+            <Plus size={20} />
+          </button>
+        </form>
+      </CreateDetails>
+
+      <div className="phrase-grid">
+        {phraseLibrary.map((phrase) => (
+          <article className="phrase-card" key={phrase.id}>
+            <div className="title-row">
+              <div>
+                <p className="tag">Быстро</p>
+                <h3>{phrase.zh}</h3>
+              </div>
+              <button
+                className="icon-button quiet"
+                type="button"
+                title="Произнести"
+                onClick={() => speakChinese(phrase.zh)}
+              >
+                <Volume2 size={18} />
+              </button>
+            </div>
+            <p className="phrase-pinyin">{phrase.pinyin}</p>
+            <p>{phrase.ru}</p>
+          </article>
+        ))}
+      </div>
+
+      {savedPhrases.length ? (
+        <div className="list-stack">
+          <SectionHeading eyebrow="Свои" title="Фразы поездки" />
+          {savedPhrases.map((item) => {
+            const phrase = parsePhraseText(item.text)
+            return (
+              <article className="phrase-card saved-phrase-card" key={item.id}>
+                {editingPhraseId === item.id ? (
+                  <form
+                    className="edit-form"
+                    onSubmit={(event) => updatePhrase(event, item.id)}
+                  >
+                    <label>
+                      <span>Китайский</span>
+                      <input name="zh" defaultValue={phrase.zh} required />
+                    </label>
+                    <label>
+                      <span>Пиньинь</span>
+                      <input name="pinyin" defaultValue={phrase.pinyin} />
+                    </label>
+                    <label className="wide-field">
+                      <span>Перевод</span>
+                      <input name="ru" defaultValue={phrase.ru} required />
+                    </label>
+                    <SaveCancelActions onCancel={() => setEditingPhraseId(null)} />
+                  </form>
+                ) : (
+                  <>
+                    <div className="title-row">
+                      <div>
+                        <p className="tag">Своя</p>
+                        <h3>{phrase.zh}</h3>
+                      </div>
+                      <button
+                        className="icon-button quiet"
+                        type="button"
+                        title="Произнести"
+                        onClick={() => speakChinese(phrase.zh)}
+                      >
+                        <Volume2 size={18} />
+                      </button>
+                    </div>
+                    <p className="phrase-pinyin">{phrase.pinyin}</p>
+                    <p>{phrase.ru}</p>
+                    <div className="card-actions">
+                      <button
+                        className="chip-button"
+                        type="button"
+                        onClick={() => setEditingPhraseId(item.id)}
+                      >
+                        <Pencil size={14} />
+                        <span>Править</span>
+                      </button>
+                      <button
+                        className="chip-button"
+                        type="button"
+                        onClick={() =>
+                          commit((previous) => ({
+                            ...previous,
+                            checklistItems: previous.checklistItems.filter(
+                              (candidate) => candidate.id !== item.id,
+                            ),
+                          }))
+                        }
+                      >
+                        <Trash2 size={14} />
+                        <span>Удалить</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </article>
+            )
+          })}
+        </div>
+      ) : null}
     </section>
   )
 }
@@ -2077,6 +2857,98 @@ function DayItemRow({
   )
 }
 
+function RouteMapPanel({ state }: { state: TripState }) {
+  const sortedDays = [...state.days].sort((left, right) =>
+    left.date.localeCompare(right.date),
+  )
+
+  return (
+    <article className="route-map-panel">
+      <div className="title-row">
+        <div>
+          <p className="eyebrow">Карта</p>
+          <h3>Маршрут по дням</h3>
+        </div>
+        <Map size={20} />
+      </div>
+      <div className="route-rail" aria-label="Карта маршрута по дням">
+        {sortedDays.map((day, index) => {
+          const itemCount = state.dayItems.filter((item) => item.dayId === day.id).length
+          const mapUrl = buildDayMapUrl(day, state)
+
+          return (
+            <a
+              className="route-stop"
+              href={mapUrl}
+              target="_blank"
+              rel="noreferrer"
+              key={day.id}
+            >
+              <span className="route-stop-index">{index + 1}</span>
+              <strong>{day.city}</strong>
+              <span>{formatShortDate(day.date)}</span>
+              <small>{itemCount} в плане</small>
+            </a>
+          )
+        })}
+      </div>
+    </article>
+  )
+}
+
+function CompactDayItem({ item, state }: { item: DayItem; state: TripState }) {
+  const entity = getDayItemEntity(item, state)
+
+  return (
+    <div className="compact-day-item">
+      <div className="day-item-kind">{dayItemIcon(item.kind)}</div>
+      <div>
+        <strong>{entity.title}</strong>
+        {entity.subtitle ? <p>{entity.subtitle}</p> : null}
+      </div>
+    </div>
+  )
+}
+
+function CreateDetails({
+  title,
+  icon,
+  children,
+}: {
+  title: string
+  icon: ReactNode
+  children: ReactNode
+}) {
+  return (
+    <details className="create-panel">
+      <summary>
+        <span className="summary-icon">{icon}</span>
+        <span>{title}</span>
+        <Plus className="summary-plus" size={18} />
+      </summary>
+      {children}
+    </details>
+  )
+}
+
+function PlaceImage({ src }: { src: string }) {
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    setFailed(false)
+  }, [src])
+
+  if (!src || failed) {
+    return (
+      <div className="image-placeholder">
+        <ImageIcon size={24} />
+      </div>
+    )
+  }
+
+  return <img src={src} alt="" loading="lazy" onError={() => setFailed(true)} />
+}
+
 function SectionHeading({
   eyebrow,
   title,
@@ -2202,6 +3074,32 @@ function useLocalStorageState<T extends string>(
   return [value, setValue] as const
 }
 
+function useOnlineStatus() {
+  const [isOnline, setIsOnline] = useState(true)
+
+  useEffect(() => {
+    setIsOnline(window.navigator.onLine)
+
+    function handleOnline() {
+      setIsOnline(true)
+    }
+
+    function handleOffline() {
+      setIsOnline(false)
+    }
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
+  return isOnline
+}
+
 function getDayItemEntity(item: DayItem, state: TripState) {
   if (item.kind === 'place') {
     const place = state.places.find((candidate) => candidate.id === item.refId)
@@ -2231,6 +3129,51 @@ function getDayItemEntity(item: DayItem, state: TripState) {
     title: item.title ?? 'Заметка',
     subtitle: item.note ?? '',
   }
+}
+
+function buildDayMapUrl(day: Day, state: TripState) {
+  const place = state.places.find((candidate) => candidate.dayId === day.id)
+  if (place?.url) return place.url
+  return `https://maps.apple.com/?q=${encodeURIComponent(`${day.city} China`)}`
+}
+
+function documentTitle(text: string) {
+  return text.split('—')[0]?.trim() || text
+}
+
+function documentMeta(text: string) {
+  return text.split('—').slice(1).join('—').trim() || 'Добавь ссылку или пометку'
+}
+
+function formatPhraseText({
+  zh,
+  pinyin,
+  ru,
+}: {
+  zh: string
+  pinyin: string
+  ru: string
+}) {
+  return pinyin ? `${zh} · ${pinyin} — ${ru}` : `${zh} — ${ru}`
+}
+
+function parsePhraseText(text: string) {
+  const [left, ...rightParts] = text.split('—')
+  const [zh, pinyin = ''] = left.split('·').map((part) => part.trim())
+
+  return {
+    zh: zh || text,
+    pinyin,
+    ru: rightParts.join('—').trim() || text,
+  }
+}
+
+function speakChinese(text: string) {
+  if (!('speechSynthesis' in window)) return
+  const utterance = new SpeechSynthesisUtterance(text)
+  utterance.lang = 'zh-CN'
+  window.speechSynthesis.cancel()
+  window.speechSynthesis.speak(utterance)
 }
 
 function getTraveler(travelers: Traveler[], travelerId: TravelerId) {
@@ -2308,6 +3251,10 @@ function syncDayItemLink(
 
 function isTabId(value: string): value is TabId {
   return tabs.some((tab) => tab.id === value)
+}
+
+function isMoreSectionId(value: string): value is MoreSectionId {
+  return moreSections.some((section) => section.id === value)
 }
 
 function isTravelerId(value: string): value is TravelerId {

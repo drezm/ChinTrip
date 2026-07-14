@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import {
   HeadContent,
   Outlet,
@@ -57,8 +57,24 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
       </head>
       <body>
         {children}
+        <ServiceWorkerRegistration />
         <Scripts />
       </body>
     </html>
   )
+}
+
+function ServiceWorkerRegistration() {
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return
+    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+      return
+    }
+
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      // The app still works normally if the browser declines registration.
+    })
+  }, [])
+
+  return null
 }
