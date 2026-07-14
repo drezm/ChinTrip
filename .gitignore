@@ -1,0 +1,7 @@
+node_modules
+dist
+.vinxi
+.output
+.tanstack
+data/trip-db.json
+*.log
