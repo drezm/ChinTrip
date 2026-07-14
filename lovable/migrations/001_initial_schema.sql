@@ -1,3 +1,38 @@
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'days'
+      and column_name = 'id'
+      and udt_name = 'uuid'
+  ) then
+    drop table if exists
+      expense_shares,
+      checklist_items,
+      day_items,
+      places,
+      hotels,
+      tickets,
+      expenses,
+      checklists,
+      settings,
+      days,
+      travelers
+    cascade;
+
+    drop type if exists
+      place_category,
+      place_status,
+      day_item_kind,
+      ticket_kind,
+      currency_code,
+      checklist_kind
+    cascade;
+  end if;
+end $$;
+
 create table if not exists travelers (
   id text primary key,
   name text not null,
