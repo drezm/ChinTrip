@@ -1,5 +1,6 @@
 import {
   Building2,
+  CalendarDays,
   CalendarPlus,
   Check,
   CircleDollarSign,
@@ -13,10 +14,12 @@ import {
   Map,
   MapPin,
   NotebookPen,
+  Pencil,
   Plane,
   Plus,
   ReceiptText,
   RefreshCw,
+  Save,
   Settings,
   ShoppingBag,
   Ticket,
@@ -24,6 +27,8 @@ import {
   Trash2,
   UserRound,
   Utensils,
+  WalletCards,
+  X,
 } from 'lucide-react'
 import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
@@ -102,6 +107,29 @@ export function TripApp({ initialState }: TripAppProps) {
   const currentTraveler =
     state.travelers.find((traveler) => traveler.id === currentTravelerId) ??
     state.travelers[0]
+  const sortedDays = useMemo(
+    () => [...state.days].sort((left, right) => left.date.localeCompare(right.date)),
+    [state.days],
+  )
+  const today = todayDate()
+  const nextDay = sortedDays.find((day) => day.date >= today) ?? sortedDays[0]
+  const nextHotel = useMemo(
+    () =>
+      [...state.hotels]
+        .sort((left, right) => left.checkIn.localeCompare(right.checkIn))
+        .find((hotel) => hotel.checkOut >= today) ?? state.hotels[0],
+    [state.hotels, today],
+  )
+  const totalExpenseCny = useMemo(
+    () =>
+      state.expenses.reduce(
+        (sum, expense) =>
+          sum +
+          toCny(expense.amount, expense.currency, state.settings.cnyToRubRate),
+        0,
+      ),
+    [state.expenses, state.settings.cnyToRubRate],
+  )
 
   async function persist(next: TripState) {
     const version = saveVersion.current + 1
@@ -175,6 +203,36 @@ export function TripApp({ initialState }: TripAppProps) {
         </div>
       </section>
 
+      <section className="overview-grid" aria-label="Краткая сводка">
+        <article className="overview-card">
+          <CalendarDays size={18} />
+          <div>
+            <span>Ближайший день</span>
+            <strong>{nextDay ? `${formatShortDate(nextDay.date)} · ${nextDay.city}` : '—'}</strong>
+          </div>
+        </article>
+        <article className="overview-card">
+          <Building2 size={18} />
+          <div>
+            <span>База</span>
+            <strong>{nextHotel ? `${nextHotel.city} · ${formatShortDate(nextHotel.checkIn)}` : '—'}</strong>
+          </div>
+        </article>
+        <article className="overview-card">
+          <WalletCards size={18} />
+          <div>
+            <span>Траты</span>
+            <strong>
+              {formatTripMoney(
+                totalExpenseCny,
+                state.settings.displayCurrency,
+                state.settings.cnyToRubRate,
+              )}
+            </strong>
+          </div>
+        </article>
+      </section>
+
       <main className="content-area">
         {activeTab === 'route' ? (
           <RouteView state={state} commit={commit} />
@@ -232,6 +290,7 @@ export function TripApp({ initialState }: TripAppProps) {
 }
 
 function RouteView({ state, commit }: { state: TripState; commit: Commit }) {
+  const [editingDayId, setEditingDayId] = useState<string | null>(null)
   const sortedDays = [...state.days].sort((left, right) =>
     left.date.localeCompare(right.date),
   )
@@ -282,6 +341,29 @@ function RouteView({ state, commit }: { state: TripState; commit: Commit }) {
       ],
     }))
     form.reset()
+  }
+
+  function updateDay(event: FormEvent<HTMLFormElement>, dayId: string) {
+    event.preventDefault()
+    const data = new FormData(event.currentTarget)
+    const date = getFormString(data, 'date')
+    const city = getFormString(data, 'city')
+    if (!date || !city) return
+
+    commit((previous) => ({
+      ...previous,
+      days: previous.days.map((day) =>
+        day.id === dayId
+          ? {
+              ...day,
+              date,
+              city,
+              note: getFormString(data, 'note'),
+            }
+          : day,
+      ),
+    }))
+    setEditingDayId(null)
   }
 
   function removeDay(dayId: string) {
@@ -339,15 +421,32 @@ function RouteView({ state, commit }: { state: TripState; commit: Commit }) {
                     <h3>{day.city}</h3>
                     <p>{formatWeekday(day.date)}</p>
                   </div>
-                  <button
-                    className="icon-button quiet"
-                    type="button"
-                    title="Удалить день"
-                    onClick={() => removeDay(day.id)}
-                  >
-                    <Trash2 size={18} />
-                  </button>
+                  <EditDeleteActions
+                    deleteTitle="Удалить день"
+                    onEdit={() => setEditingDayId(day.id)}
+                    onDelete={() => removeDay(day.id)}
+                  />
                 </div>
+                {editingDayId === day.id ? (
+                  <form
+                    className="edit-form"
+                    onSubmit={(event) => updateDay(event, day.id)}
+                  >
+                    <label>
+                      <span>Дата</span>
+                      <input name="date" type="date" defaultValue={day.date} required />
+                    </label>
+                    <label>
+                      <span>Город</span>
+                      <input name="city" defaultValue={day.city} required />
+                    </label>
+                    <label className="wide-field">
+                      <span>Заметка</span>
+                      <input name="note" defaultValue={day.note} />
+                    </label>
+                    <SaveCancelActions onCancel={() => setEditingDayId(null)} />
+                  </form>
+                ) : null}
                 {day.note ? <p className="muted-text">{day.note}</p> : null}
                 <div className="day-items">
                   {items.length ? (
@@ -361,6 +460,16 @@ function RouteView({ state, commit }: { state: TripState; commit: Commit }) {
                             ...previous,
                             dayItems: previous.dayItems.filter(
                               (candidate) => candidate.id !== item.id,
+                            ),
+                          }))
+                        }
+                        onSaveNote={(note) =>
+                          commit((previous) => ({
+                            ...previous,
+                            dayItems: previous.dayItems.map((candidate) =>
+                              candidate.id === item.id
+                                ? { ...candidate, title: 'Заметка', note }
+                                : candidate,
                             ),
                           }))
                         }
@@ -389,6 +498,8 @@ function RouteView({ state, commit }: { state: TripState; commit: Commit }) {
 }
 
 function PlacesView({ state, commit }: { state: TripState; commit: Commit }) {
+  const [editingPlaceId, setEditingPlaceId] = useState<string | null>(null)
+
   function addPlace(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const form = event.currentTarget
@@ -430,6 +541,36 @@ function PlacesView({ state, commit }: { state: TripState; commit: Commit }) {
         : previous.dayItems,
     }))
     form.reset()
+  }
+
+  function updatePlace(event: FormEvent<HTMLFormElement>, placeId: string) {
+    event.preventDefault()
+    const data = new FormData(event.currentTarget)
+    const name = getFormString(data, 'name')
+    const city = getFormString(data, 'city')
+    if (!name || !city) return
+    const dayId = getFormString(data, 'dayId')
+
+    commit((previous) => ({
+      ...previous,
+      places: previous.places.map((place) =>
+        place.id === placeId
+          ? {
+              ...place,
+              name,
+              city,
+              category: getFormString(data, 'category') as PlaceCategory,
+              url: getFormString(data, 'url'),
+              note: getFormString(data, 'note'),
+              photoUrl: getFormString(data, 'photoUrl'),
+              status: getFormString(data, 'status') as PlaceStatus,
+              dayId: dayId || undefined,
+            }
+          : place,
+      ),
+      dayItems: syncDayItemLink(previous.dayItems, 'place', placeId, dayId),
+    }))
+    setEditingPlaceId(null)
   }
 
   function setPlaceStatus(placeId: string, status: PlaceStatus) {
@@ -506,11 +647,10 @@ function PlacesView({ state, commit }: { state: TripState; commit: Commit }) {
                   <h3>{place.name}</h3>
                   <p className="muted-text">{place.city}</p>
                 </div>
-                <button
-                  className="icon-button quiet"
-                  type="button"
-                  title="Удалить место"
-                  onClick={() =>
+                <EditDeleteActions
+                  deleteTitle="Удалить место"
+                  onEdit={() => setEditingPlaceId(place.id)}
+                  onDelete={() =>
                     commit((previous) => ({
                       ...previous,
                       places: previous.places.filter(
@@ -522,10 +662,55 @@ function PlacesView({ state, commit }: { state: TripState; commit: Commit }) {
                       ),
                     }))
                   }
-                >
-                  <Trash2 size={18} />
-                </button>
+                />
               </div>
+              {editingPlaceId === place.id ? (
+                <form
+                  className="edit-form"
+                  onSubmit={(event) => updatePlace(event, place.id)}
+                >
+                  <label>
+                    <span>Название</span>
+                    <input name="name" defaultValue={place.name} required />
+                  </label>
+                  <label>
+                    <span>Город</span>
+                    <input name="city" defaultValue={place.city} required />
+                  </label>
+                  <label>
+                    <span>Категория</span>
+                    <select name="category" defaultValue={place.category}>
+                      <option value="sight">Достопримечательность</option>
+                      <option value="food">Еда</option>
+                      <option value="shopping">Шопинг</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>Статус</span>
+                    <select name="status" defaultValue={place.status}>
+                      <option value="want">Хочу</option>
+                      <option value="done">Были</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>День</span>
+                    <DaySelect days={state.days} defaultValue={place.dayId ?? ''} />
+                  </label>
+                  <label>
+                    <span>Карта</span>
+                    <input name="url" defaultValue={place.url} />
+                  </label>
+                  <label className="wide-field">
+                    <span>Фото</span>
+                    <input name="photoUrl" defaultValue={place.photoUrl} />
+                  </label>
+                  <label className="wide-field">
+                    <span>Заметка</span>
+                    <input name="note" defaultValue={place.note} />
+                  </label>
+                  <SaveCancelActions onCancel={() => setEditingPlaceId(null)} />
+                </form>
+              ) : null}
               {place.note ? <p>{place.note}</p> : null}
               <div className="card-actions">
                 <button
@@ -553,6 +738,8 @@ function PlacesView({ state, commit }: { state: TripState; commit: Commit }) {
 }
 
 function HotelsView({ state, commit }: { state: TripState; commit: Commit }) {
+  const [editingHotelId, setEditingHotelId] = useState<string | null>(null)
+
   function addHotel(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const form = event.currentTarget
@@ -595,6 +782,38 @@ function HotelsView({ state, commit }: { state: TripState; commit: Commit }) {
         : previous.dayItems,
     }))
     form.reset()
+  }
+
+  function updateHotel(event: FormEvent<HTMLFormElement>, hotelId: string) {
+    event.preventDefault()
+    const data = new FormData(event.currentTarget)
+    const name = getFormString(data, 'name')
+    const city = getFormString(data, 'city')
+    if (!name || !city) return
+    const dayId = getFormString(data, 'dayId')
+
+    commit((previous) => ({
+      ...previous,
+      hotels: previous.hotels.map((hotel) =>
+        hotel.id === hotelId
+          ? {
+              ...hotel,
+              name,
+              city,
+              address: getFormString(data, 'address'),
+              checkIn: getFormString(data, 'checkIn'),
+              checkOut: getFormString(data, 'checkOut'),
+              price: getFormNumber(data, 'price'),
+              currency: getFormString(data, 'currency') as Currency,
+              url: getFormString(data, 'url'),
+              confirmationUrl: getFormString(data, 'confirmationUrl'),
+              note: getFormString(data, 'note'),
+            }
+          : hotel,
+      ),
+      dayItems: syncDayItemLink(previous.dayItems, 'hotel', hotelId, dayId),
+    }))
+    setEditingHotelId(null)
   }
 
   return (
@@ -666,11 +885,10 @@ function HotelsView({ state, commit }: { state: TripState; commit: Commit }) {
                   <h3>{hotel.name}</h3>
                   <p className="muted-text">{hotel.city}</p>
                 </div>
-                <button
-                  className="icon-button quiet"
-                  type="button"
-                  title="Удалить отель"
-                  onClick={() =>
+                <EditDeleteActions
+                  deleteTitle="Удалить отель"
+                  onEdit={() => setEditingHotelId(hotel.id)}
+                  onDelete={() =>
                     commit((previous) => ({
                       ...previous,
                       hotels: previous.hotels.filter(
@@ -682,10 +900,72 @@ function HotelsView({ state, commit }: { state: TripState; commit: Commit }) {
                       ),
                     }))
                   }
-                >
-                  <Trash2 size={18} />
-                </button>
+                />
               </div>
+              {editingHotelId === hotel.id ? (
+                <form
+                  className="edit-form"
+                  onSubmit={(event) => updateHotel(event, hotel.id)}
+                >
+                  <label>
+                    <span>Отель</span>
+                    <input name="name" defaultValue={hotel.name} required />
+                  </label>
+                  <label>
+                    <span>Город</span>
+                    <input name="city" defaultValue={hotel.city} required />
+                  </label>
+                  <label>
+                    <span>Заезд</span>
+                    <input name="checkIn" type="date" defaultValue={hotel.checkIn} />
+                  </label>
+                  <label>
+                    <span>Выезд</span>
+                    <input name="checkOut" type="date" defaultValue={hotel.checkOut} />
+                  </label>
+                  <label>
+                    <span>Цена</span>
+                    <input
+                      name="price"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      defaultValue={hotel.price}
+                    />
+                  </label>
+                  <label>
+                    <span>Валюта</span>
+                    <CurrencySelect defaultValue={hotel.currency} />
+                  </label>
+                  <label>
+                    <span>День</span>
+                    <DaySelect
+                      days={state.days}
+                      defaultValue={getLinkedDayId(state.dayItems, 'hotel', hotel.id)}
+                    />
+                  </label>
+                  <label className="wide-field">
+                    <span>Адрес</span>
+                    <input name="address" defaultValue={hotel.address} />
+                  </label>
+                  <label>
+                    <span>Бронь</span>
+                    <input name="url" defaultValue={hotel.url} />
+                  </label>
+                  <label>
+                    <span>Подтверждение</span>
+                    <input
+                      name="confirmationUrl"
+                      defaultValue={hotel.confirmationUrl}
+                    />
+                  </label>
+                  <label className="wide-field">
+                    <span>Заметка</span>
+                    <input name="note" defaultValue={hotel.note} />
+                  </label>
+                  <SaveCancelActions onCancel={() => setEditingHotelId(null)} />
+                </form>
+              ) : null}
               <p>
                 {formatShortDate(hotel.checkIn)} → {formatShortDate(hotel.checkOut)}
               </p>
@@ -707,6 +987,8 @@ function HotelsView({ state, commit }: { state: TripState; commit: Commit }) {
 }
 
 function TicketsView({ state, commit }: { state: TripState; commit: Commit }) {
+  const [editingTicketId, setEditingTicketId] = useState<string | null>(null)
+
   function addTicket(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const form = event.currentTarget
@@ -750,6 +1032,39 @@ function TicketsView({ state, commit }: { state: TripState; commit: Commit }) {
         : previous.dayItems,
     }))
     form.reset()
+  }
+
+  function updateTicket(event: FormEvent<HTMLFormElement>, ticketId: string) {
+    event.preventDefault()
+    const data = new FormData(event.currentTarget)
+    const fromCity = getFormString(data, 'fromCity')
+    const toCity = getFormString(data, 'toCity')
+    if (!fromCity || !toCity) return
+    const dayId = getFormString(data, 'dayId')
+
+    commit((previous) => ({
+      ...previous,
+      tickets: previous.tickets.map((ticket) =>
+        ticket.id === ticketId
+          ? {
+              ...ticket,
+              kind: getFormString(data, 'kind') as TicketKind,
+              fromCity,
+              toCity,
+              departAt: getFormString(data, 'departAt'),
+              arriveAt: getFormString(data, 'arriveAt'),
+              refNumber: getFormString(data, 'refNumber'),
+              seat: getFormString(data, 'seat'),
+              price: getFormNumber(data, 'price'),
+              currency: getFormString(data, 'currency') as Currency,
+              url: getFormString(data, 'url'),
+              fileUrl: getFormString(data, 'fileUrl'),
+            }
+          : ticket,
+      ),
+      dayItems: syncDayItemLink(previous.dayItems, 'ticket', ticketId, dayId),
+    }))
+    setEditingTicketId(null)
   }
 
   return (
@@ -829,11 +1144,10 @@ function TicketsView({ state, commit }: { state: TripState; commit: Commit }) {
                   </h3>
                   <p className="muted-text">{ticketKindLabel(ticket.kind)}</p>
                 </div>
-                <button
-                  className="icon-button quiet"
-                  type="button"
-                  title="Удалить билет"
-                  onClick={() =>
+                <EditDeleteActions
+                  deleteTitle="Удалить билет"
+                  onEdit={() => setEditingTicketId(ticket.id)}
+                  onDelete={() =>
                     commit((previous) => ({
                       ...previous,
                       tickets: previous.tickets.filter(
@@ -845,10 +1159,89 @@ function TicketsView({ state, commit }: { state: TripState; commit: Commit }) {
                       ),
                     }))
                   }
-                >
-                  <Trash2 size={18} />
-                </button>
+                />
               </div>
+              {editingTicketId === ticket.id ? (
+                <form
+                  className="edit-form"
+                  onSubmit={(event) => updateTicket(event, ticket.id)}
+                >
+                  <label>
+                    <span>Тип</span>
+                    <select name="kind" defaultValue={ticket.kind}>
+                      <option value="flight">Самолёт</option>
+                      <option value="train">Поезд</option>
+                      <option value="metro-pass">Метро-пасс</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>Откуда</span>
+                    <input name="fromCity" defaultValue={ticket.fromCity} required />
+                  </label>
+                  <label>
+                    <span>Куда</span>
+                    <input name="toCity" defaultValue={ticket.toCity} required />
+                  </label>
+                  <label>
+                    <span>Отправление</span>
+                    <input
+                      name="departAt"
+                      type="datetime-local"
+                      defaultValue={ticket.departAt}
+                    />
+                  </label>
+                  <label>
+                    <span>Прибытие</span>
+                    <input
+                      name="arriveAt"
+                      type="datetime-local"
+                      defaultValue={ticket.arriveAt}
+                    />
+                  </label>
+                  <label>
+                    <span>Номер</span>
+                    <input name="refNumber" defaultValue={ticket.refNumber} />
+                  </label>
+                  <label>
+                    <span>Места</span>
+                    <input name="seat" defaultValue={ticket.seat} />
+                  </label>
+                  <label>
+                    <span>Цена</span>
+                    <input
+                      name="price"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      defaultValue={ticket.price}
+                    />
+                  </label>
+                  <label>
+                    <span>Валюта</span>
+                    <CurrencySelect defaultValue={ticket.currency} />
+                  </label>
+                  <label>
+                    <span>День</span>
+                    <DaySelect
+                      days={state.days}
+                      defaultValue={getLinkedDayId(
+                        state.dayItems,
+                        'ticket',
+                        ticket.id,
+                      )}
+                    />
+                  </label>
+                  <label>
+                    <span>Ссылка</span>
+                    <input name="url" defaultValue={ticket.url} />
+                  </label>
+                  <label>
+                    <span>Файл</span>
+                    <input name="fileUrl" defaultValue={ticket.fileUrl} />
+                  </label>
+                  <SaveCancelActions onCancel={() => setEditingTicketId(null)} />
+                </form>
+              ) : null}
               <p>
                 {formatDateTime(ticket.departAt)} → {formatDateTime(ticket.arriveAt)}
               </p>
@@ -879,6 +1272,7 @@ function ExpensesView({
   commit: Commit
   currentTravelerId: TravelerId
 }) {
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null)
   const balances = useMemo(
     () =>
       calculateBalances(
@@ -940,6 +1334,42 @@ function ExpensesView({
       ],
     }))
     form.reset()
+  }
+
+  function updateExpense(event: FormEvent<HTMLFormElement>, expenseId: string) {
+    event.preventDefault()
+    const data = new FormData(event.currentTarget)
+    const amount = getFormNumber(data, 'amount')
+    if (!amount) return
+    const selectedShares = travelerIds.filter(
+      (travelerId) => data.get(`share-${travelerId}`) === 'on',
+    )
+    const shares = selectedShares.length ? selectedShares : travelerIds
+
+    commit((previous) => ({
+      ...previous,
+      expenses: previous.expenses.map((expense) =>
+        expense.id === expenseId
+          ? {
+              ...expense,
+              payerId: getFormString(data, 'payerId') as TravelerId,
+              amount,
+              currency: getFormString(data, 'currency') as Currency,
+              category: getFormString(data, 'category') || 'Общее',
+              description: getFormString(data, 'description') || 'Трата',
+              spentAt: getFormString(data, 'spentAt') || todayDate(),
+            }
+          : expense,
+      ),
+      expenseShares: [
+        ...previous.expenseShares.filter((share) => share.expenseId !== expenseId),
+        ...shares.map((travelerId) => ({
+          expenseId,
+          travelerId,
+        })),
+      ],
+    }))
+    setEditingExpenseId(null)
   }
 
   return (
@@ -1091,11 +1521,10 @@ function ExpensesView({
                       {expense.category} · {formatShortDate(expense.spentAt)}
                     </p>
                   </div>
-                  <button
-                    className="icon-button quiet"
-                    type="button"
-                    title="Удалить трату"
-                    onClick={() =>
+                  <EditDeleteActions
+                    deleteTitle="Удалить трату"
+                    onEdit={() => setEditingExpenseId(expense.id)}
+                    onDelete={() =>
                       commit((previous) => ({
                         ...previous,
                         expenses: previous.expenses.filter(
@@ -1106,10 +1535,68 @@ function ExpensesView({
                         ),
                       }))
                     }
-                  >
-                    <Trash2 size={18} />
-                  </button>
+                  />
                 </div>
+                {editingExpenseId === expense.id ? (
+                  <form
+                    className="edit-form"
+                    onSubmit={(event) => updateExpense(event, expense.id)}
+                  >
+                    <label>
+                      <span>Кто платил</span>
+                      <select name="payerId" defaultValue={expense.payerId}>
+                        {state.travelers.map((traveler) => (
+                          <option key={traveler.id} value={traveler.id}>
+                            {traveler.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      <span>Сумма</span>
+                      <input
+                        name="amount"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        defaultValue={expense.amount}
+                        required
+                      />
+                    </label>
+                    <label>
+                      <span>Валюта</span>
+                      <CurrencySelect defaultValue={expense.currency} />
+                    </label>
+                    <label>
+                      <span>Категория</span>
+                      <input name="category" defaultValue={expense.category} />
+                    </label>
+                    <label>
+                      <span>Дата</span>
+                      <input name="spentAt" type="date" defaultValue={expense.spentAt} />
+                    </label>
+                    <label className="wide-field">
+                      <span>Комментарий</span>
+                      <input name="description" defaultValue={expense.description} />
+                    </label>
+                    <fieldset className="wide-field checkbox-row">
+                      <legend>В доле</legend>
+                      {state.travelers.map((traveler) => (
+                        <label key={traveler.id}>
+                          <input
+                            name={`share-${traveler.id}`}
+                            type="checkbox"
+                            defaultChecked={shares.some(
+                              (share) => share.travelerId === traveler.id,
+                            )}
+                          />
+                          <span>{traveler.name}</span>
+                        </label>
+                      ))}
+                    </fieldset>
+                    <SaveCancelActions onCancel={() => setEditingExpenseId(null)} />
+                  </form>
+                ) : null}
                 <p>
                   <strong>{formatRawMoney(expense.amount, expense.currency)}</strong>{' '}
                   оплатил {payer.name}
@@ -1127,6 +1614,11 @@ function ExpensesView({
 }
 
 function NotesView({ state, commit }: { state: TripState; commit: Commit }) {
+  const [editingChecklistId, setEditingChecklistId] = useState<string | null>(null)
+  const [editingChecklistItemId, setEditingChecklistItemId] = useState<
+    string | null
+  >(null)
+
   function addChecklist(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const form = event.currentTarget
@@ -1171,6 +1663,44 @@ function NotesView({ state, commit }: { state: TripState; commit: Commit }) {
     form.reset()
   }
 
+  function updateChecklist(event: FormEvent<HTMLFormElement>, checklistId: string) {
+    event.preventDefault()
+    const data = new FormData(event.currentTarget)
+    const title = getFormString(data, 'title')
+    if (!title) return
+
+    commit((previous) => ({
+      ...previous,
+      checklists: previous.checklists.map((checklist) =>
+        checklist.id === checklistId
+          ? {
+              ...checklist,
+              title,
+              kind: getFormString(data, 'kind') as Checklist['kind'],
+            }
+          : checklist,
+      ),
+    }))
+    setEditingChecklistId(null)
+  }
+
+  function updateChecklistItem(
+    event: FormEvent<HTMLFormElement>,
+    itemId: string,
+  ) {
+    event.preventDefault()
+    const text = getFormString(new FormData(event.currentTarget), 'text')
+    if (!text) return
+
+    commit((previous) => ({
+      ...previous,
+      checklistItems: previous.checklistItems.map((item) =>
+        item.id === itemId ? { ...item, text } : item,
+      ),
+    }))
+    setEditingChecklistItemId(null)
+  }
+
   return (
     <section className="view-stack" aria-labelledby="notes-title">
       <SectionHeading
@@ -1210,11 +1740,10 @@ function NotesView({ state, commit }: { state: TripState; commit: Commit }) {
                   <p className="tag">{checklistKindLabel(checklist.kind)}</p>
                   <h3>{checklist.title}</h3>
                 </div>
-                <button
-                  className="icon-button quiet"
-                  type="button"
-                  title="Удалить список"
-                  onClick={() =>
+                <EditDeleteActions
+                  deleteTitle="Удалить список"
+                  onEdit={() => setEditingChecklistId(checklist.id)}
+                  onDelete={() =>
                     commit((previous) => ({
                       ...previous,
                       checklists: previous.checklists.filter(
@@ -1225,46 +1754,104 @@ function NotesView({ state, commit }: { state: TripState; commit: Commit }) {
                       ),
                     }))
                   }
-                >
-                  <Trash2 size={18} />
-                </button>
+                />
               </div>
-              <div className="checklist-items">
-                {items.map((item) => (
-                  <label className="check-item" key={item.id}>
-                    <input
-                      type="checkbox"
-                      checked={item.done}
-                      onChange={(event) =>
-                        commit((previous) => ({
-                          ...previous,
-                          checklistItems: previous.checklistItems.map(
-                            (candidate) =>
-                              candidate.id === item.id
-                                ? { ...candidate, done: event.target.checked }
-                                : candidate,
-                          ),
-                        }))
-                      }
-                    />
-                    <span>{item.text}</span>
-                    <button
-                      className="icon-button tiny quiet"
-                      type="button"
-                      title="Удалить пункт"
-                      onClick={() =>
-                        commit((previous) => ({
-                          ...previous,
-                          checklistItems: previous.checklistItems.filter(
-                            (candidate) => candidate.id !== item.id,
-                          ),
-                        }))
-                      }
-                    >
-                      <Trash2 size={15} />
-                    </button>
+              {editingChecklistId === checklist.id ? (
+                <form
+                  className="edit-form"
+                  onSubmit={(event) => updateChecklist(event, checklist.id)}
+                >
+                  <label>
+                    <span>Название</span>
+                    <input name="title" defaultValue={checklist.title} required />
                   </label>
-                ))}
+                  <label>
+                    <span>Тип</span>
+                    <select name="kind" defaultValue={checklist.kind}>
+                      <option value="notes">Заметки</option>
+                      <option value="packing">Что взять</option>
+                      <option value="visa">Визы</option>
+                      <option value="phrases">Фразы</option>
+                    </select>
+                  </label>
+                  <SaveCancelActions onCancel={() => setEditingChecklistId(null)} />
+                </form>
+              ) : null}
+              <div className="checklist-items">
+                {items.map((item) =>
+                  editingChecklistItemId === item.id ? (
+                    <form
+                      className="check-item check-item-edit"
+                      key={item.id}
+                      onSubmit={(event) => updateChecklistItem(event, item.id)}
+                    >
+                      <input name="text" defaultValue={item.text} autoFocus />
+                      <div className="action-cluster compact">
+                        <button
+                          className="icon-button tiny quiet"
+                          type="button"
+                          title="Отмена"
+                          onClick={() => setEditingChecklistItemId(null)}
+                        >
+                          <X size={15} />
+                        </button>
+                        <button
+                          className="icon-button tiny primary"
+                          type="submit"
+                          title="Сохранить"
+                        >
+                          <Save size={15} />
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className="check-item" key={item.id}>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={item.done}
+                          onChange={(event) =>
+                            commit((previous) => ({
+                              ...previous,
+                              checklistItems: previous.checklistItems.map(
+                                (candidate) =>
+                                  candidate.id === item.id
+                                    ? { ...candidate, done: event.target.checked }
+                                    : candidate,
+                              ),
+                            }))
+                          }
+                        />
+                        <span>{item.text}</span>
+                      </label>
+                      <div className="action-cluster compact">
+                        <button
+                          className="icon-button tiny quiet"
+                          type="button"
+                          title="Редактировать пункт"
+                          onClick={() => setEditingChecklistItemId(item.id)}
+                        >
+                          <Pencil size={15} />
+                        </button>
+                        <button
+                          className="icon-button tiny quiet"
+                          type="button"
+                          title="Удалить пункт"
+                          onClick={() =>
+                            commit((previous) => ({
+                              ...previous,
+                              checklistItems: previous.checklistItems.filter(
+                                (candidate) => candidate.id !== item.id,
+                              ),
+                            }))
+                          }
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </div>
+                  ),
+                )}
               </div>
               <form
                 className="inline-note-form"
@@ -1419,12 +2006,46 @@ function DayItemRow({
   item,
   state,
   onRemove,
+  onSaveNote,
 }: {
   item: DayItem
   state: TripState
   onRemove: () => void
+  onSaveNote?: (note: string) => void
 }) {
+  const [isEditing, setIsEditing] = useState(false)
   const entity = getDayItemEntity(item, state)
+
+  function saveNote(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const note = getFormString(new FormData(event.currentTarget), 'note')
+    if (!note) return
+    onSaveNote?.(note)
+    setIsEditing(false)
+  }
+
+  if (item.kind === 'note' && isEditing) {
+    return (
+      <form className="day-item-row day-item-edit" onSubmit={saveNote}>
+        <div className="day-item-kind">{dayItemIcon(item.kind)}</div>
+        <input name="note" defaultValue={item.note ?? ''} autoFocus />
+        <div className="action-cluster compact">
+          <button
+            className="icon-button tiny quiet"
+            type="button"
+            title="Отмена"
+            onClick={() => setIsEditing(false)}
+          >
+            <X size={15} />
+          </button>
+          <button className="icon-button tiny primary" type="submit" title="Сохранить">
+            <Save size={15} />
+          </button>
+        </div>
+      </form>
+    )
+  }
+
   return (
     <div className="day-item-row">
       <div className="day-item-kind">{dayItemIcon(item.kind)}</div>
@@ -1432,14 +2053,26 @@ function DayItemRow({
         <strong>{entity.title}</strong>
         {entity.subtitle ? <p>{entity.subtitle}</p> : null}
       </div>
-      <button
-        className="icon-button tiny quiet"
-        type="button"
-        title="Убрать из дня"
-        onClick={onRemove}
-      >
-        <Trash2 size={15} />
-      </button>
+      <div className="action-cluster compact">
+        {item.kind === 'note' ? (
+          <button
+            className="icon-button tiny quiet"
+            type="button"
+            title="Редактировать заметку"
+            onClick={() => setIsEditing(true)}
+          >
+            <Pencil size={15} />
+          </button>
+        ) : null}
+        <button
+          className="icon-button tiny quiet"
+          type="button"
+          title="Убрать из дня"
+          onClick={onRemove}
+        >
+          <Trash2 size={15} />
+        </button>
+      </div>
     </div>
   )
 }
@@ -1464,9 +2097,61 @@ function SectionHeading({
   )
 }
 
-function DaySelect({ days }: { days: Day[] }) {
+function EditDeleteActions({
+  onEdit,
+  onDelete,
+  deleteTitle,
+}: {
+  onEdit: () => void
+  onDelete: () => void
+  deleteTitle: string
+}) {
   return (
-    <select name="dayId" defaultValue="">
+    <div className="action-cluster">
+      <button
+        className="icon-button quiet"
+        type="button"
+        title="Редактировать"
+        onClick={onEdit}
+      >
+        <Pencil size={18} />
+      </button>
+      <button
+        className="icon-button quiet"
+        type="button"
+        title={deleteTitle}
+        onClick={onDelete}
+      >
+        <Trash2 size={18} />
+      </button>
+    </div>
+  )
+}
+
+function SaveCancelActions({ onCancel }: { onCancel: () => void }) {
+  return (
+    <div className="edit-actions">
+      <button className="secondary-button" type="button" onClick={onCancel}>
+        <X size={18} />
+        <span>Отмена</span>
+      </button>
+      <button className="primary-button" type="submit">
+        <Save size={18} />
+        <span>Сохранить</span>
+      </button>
+    </div>
+  )
+}
+
+function DaySelect({
+  days,
+  defaultValue = '',
+}: {
+  days: Day[]
+  defaultValue?: string
+}) {
+  return (
+    <select name="dayId" defaultValue={defaultValue}>
       <option value="">Не привязывать</option>
       {[...days]
         .sort((left, right) => left.date.localeCompare(right.date))
@@ -1479,9 +2164,9 @@ function DaySelect({ days }: { days: Day[] }) {
   )
 }
 
-function CurrencySelect() {
+function CurrencySelect({ defaultValue = 'CNY' }: { defaultValue?: Currency }) {
   return (
-    <select name="currency" defaultValue="CNY">
+    <select name="currency" defaultValue={defaultValue}>
       <option value="CNY">CNY</option>
       <option value="RUB">RUB</option>
     </select>
@@ -1581,6 +2266,44 @@ function nextChecklistOrder(items: TripState['checklistItems'], checklistId: str
   return checklistItems.length
     ? Math.max(...checklistItems.map((item) => item.sortOrder)) + 10
     : 10
+}
+
+function getLinkedDayId(
+  items: DayItem[],
+  kind: Exclude<DayItemKind, 'note'>,
+  refId: string,
+) {
+  return (
+    items.find((item) => item.kind === kind && item.refId === refId)?.dayId ?? ''
+  )
+}
+
+function syncDayItemLink(
+  items: DayItem[],
+  kind: Exclude<DayItemKind, 'note'>,
+  refId: string,
+  dayId: string,
+) {
+  const existing = items.find((item) => item.kind === kind && item.refId === refId)
+  const filtered = items.filter(
+    (item) => !(item.kind === kind && item.refId === refId),
+  )
+
+  if (!dayId) return filtered
+
+  return [
+    ...filtered,
+    {
+      id: existing?.id ?? makeId('day-item'),
+      dayId,
+      kind,
+      refId,
+      sortOrder:
+        existing?.dayId === dayId
+          ? existing.sortOrder
+          : nextSortOrder(filtered, dayId),
+    },
+  ]
 }
 
 function isTabId(value: string): value is TabId {
