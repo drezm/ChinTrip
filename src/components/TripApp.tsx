@@ -2447,13 +2447,13 @@ function DocumentsView({ state, commit }: { state: TripState; commit: Commit }) 
     })),
   ]
 
-  function addVisaDocument(event: FormEvent<HTMLFormElement>) {
+  async function addVisaDocument(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const form = event.currentTarget
     const data = new FormData(form)
     const title = getFormString(data, 'title')
-    const url = getFormString(data, 'url')
     if (!title) return
+    const documentValue = await getPhotoValue(data, getFormString(data, 'url'))
 
     commit((previous) => {
       const checklist =
@@ -2477,7 +2477,7 @@ function DocumentsView({ state, commit }: { state: TripState; commit: Commit }) 
           {
             id: makeId('check-item'),
             checklistId: checklist.id,
-            text: url ? `${title} — ${url}` : title,
+            text: formatDocumentText(title, documentValue),
             done: false,
             sortOrder: nextChecklistOrder(previous.checklistItems, checklist.id),
           },
@@ -2487,13 +2487,17 @@ function DocumentsView({ state, commit }: { state: TripState; commit: Commit }) 
     form.reset()
   }
 
-  function saveLinkedDocument(
+  async function saveLinkedDocument(
     event: FormEvent<HTMLFormElement>,
     source: 'hotel' | 'ticket',
     refId: string,
+    currentValue: string,
   ) {
     event.preventDefault()
-    const value = getFormString(new FormData(event.currentTarget), 'documentUrl')
+    const data = new FormData(event.currentTarget)
+    const typedValue = getFormString(data, 'documentUrl')
+    const fallback = typedValue || (isEmbeddedImage(currentValue) ? currentValue : '')
+    const value = await getPhotoValue(data, fallback)
 
     commit((previous) =>
       source === 'hotel'
@@ -2515,15 +2519,26 @@ function DocumentsView({ state, commit }: { state: TripState; commit: Commit }) 
     setEditingDocId(null)
   }
 
-  function updateVisaDocument(event: FormEvent<HTMLFormElement>, itemId: string) {
+  async function updateVisaDocument(
+    event: FormEvent<HTMLFormElement>,
+    itemId: string,
+    currentText: string,
+  ) {
     event.preventDefault()
-    const text = getFormString(new FormData(event.currentTarget), 'text')
-    if (!text) return
+    const data = new FormData(event.currentTarget)
+    const title = getFormString(data, 'title')
+    if (!title) return
+    const existingValue = documentValue(currentText)
+    const typedValue = getFormString(data, 'url')
+    const fallback = typedValue || (isEmbeddedImage(existingValue) ? existingValue : '')
+    const value = await getPhotoValue(data, fallback)
 
     commit((previous) => ({
       ...previous,
       checklistItems: previous.checklistItems.map((item) =>
-        item.id === itemId ? { ...item, text } : item,
+        item.id === itemId
+          ? { ...item, text: formatDocumentText(title, value) }
+          : item,
       ),
     }))
     setEditingDocId(null)
@@ -2547,6 +2562,10 @@ function DocumentsView({ state, commit }: { state: TripState; commit: Commit }) 
             <span>Ссылка/пометка</span>
             <input name="url" placeholder="Фото, файл или где лежит" />
           </label>
+          <label className="wide-field">
+            <span>Фото из галереи</span>
+            <input name="photoFile" type="file" accept="image/*" />
+          </label>
           <button className="icon-button primary" type="submit" title="Добавить">
             <Plus size={20} />
           </button>
@@ -2557,7 +2576,13 @@ function DocumentsView({ state, commit }: { state: TripState; commit: Commit }) 
         {linkedDocs.map((doc) => (
           <article className="document-card" key={doc.id}>
             <div className={`document-preview ${doc.href ? 'ready' : ''}`}>
-              {doc.href ? <QrCode size={34} /> : <ImageIcon size={34} />}
+              {isEmbeddedImage(doc.href) ? (
+                <img src={doc.href} alt="" />
+              ) : doc.href ? (
+                <QrCode size={34} />
+              ) : (
+                <ImageIcon size={34} />
+              )}
             </div>
             <div className="document-body">
               <p className="tag">{doc.label}</p>
@@ -2567,15 +2592,22 @@ function DocumentsView({ state, commit }: { state: TripState; commit: Commit }) 
                 <form
                   className="inline-edit-form"
                   onSubmit={(event) =>
-                    saveLinkedDocument(event, doc.source, doc.refId)
+                    saveLinkedDocument(event, doc.source, doc.refId, doc.editValue)
                   }
                 >
-                  <input
-                    name="documentUrl"
-                    defaultValue={doc.editValue}
-                    placeholder="Ссылка на QR/скрин"
-                    autoFocus
-                  />
+                  <label>
+                    <span>Ссылка/пометка</span>
+                    <input
+                      name="documentUrl"
+                      defaultValue={editableDocumentValue(doc.editValue)}
+                      placeholder={documentInputPlaceholder(doc.editValue)}
+                      autoFocus
+                    />
+                  </label>
+                  <label>
+                    <span>Фото из галереи</span>
+                    <input name="photoFile" type="file" accept="image/*" />
+                  </label>
                   <SaveCancelActions onCancel={() => setEditingDocId(null)} />
                 </form>
               ) : (
@@ -2588,62 +2620,97 @@ function DocumentsView({ state, commit }: { state: TripState; commit: Commit }) 
                     <Pencil size={14} />
                     <span>{doc.href ? 'Изменить' : 'Добавить'}</span>
                   </button>
-                  <ExternalLinkButton href={doc.href} label="Открыть" />
+                  <ExternalLinkButton
+                    href={doc.href}
+                    label={isEmbeddedImage(doc.href) ? 'Фото' : 'Открыть'}
+                  />
                 </div>
               )}
             </div>
           </article>
         ))}
 
-        {visaItems.map((item) => (
-          <article className="document-card" key={item.id}>
-            <div className={`document-preview ${item.done ? '' : 'ready'}`}>
-              <KeyRound size={34} />
-            </div>
-            <div className="document-body">
-              <p className="tag">Документ</p>
-              {editingDocId === item.id ? (
-                <form
-                  className="inline-edit-form"
-                  onSubmit={(event) => updateVisaDocument(event, item.id)}
-                >
-                  <input name="text" defaultValue={item.text} autoFocus />
-                  <SaveCancelActions onCancel={() => setEditingDocId(null)} />
-                </form>
-              ) : (
-                <>
-                  <h3>{documentTitle(item.text)}</h3>
-                  <p className="muted-text">{documentMeta(item.text)}</p>
-                  <div className="card-actions">
-                    <button
-                      className="chip-button"
-                      type="button"
-                      onClick={() => setEditingDocId(item.id)}
-                    >
-                      <Pencil size={14} />
-                      <span>Править</span>
-                    </button>
-                    <button
-                      className="chip-button"
-                      type="button"
-                      onClick={() =>
-                        commit((previous) => ({
-                          ...previous,
-                          checklistItems: previous.checklistItems.filter(
-                            (candidate) => candidate.id !== item.id,
-                          ),
-                        }))
-                      }
-                    >
-                      <Trash2 size={14} />
-                      <span>Удалить</span>
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </article>
-        ))}
+        {visaItems.map((item) => {
+          const value = documentValue(item.text)
+
+          return (
+            <article className="document-card" key={item.id}>
+              <div className={`document-preview ${value ? 'ready' : ''}`}>
+                {isEmbeddedImage(value) ? (
+                  <img src={value} alt="" />
+                ) : (
+                  <KeyRound size={34} />
+                )}
+              </div>
+              <div className="document-body">
+                <p className="tag">Документ</p>
+                {editingDocId === item.id ? (
+                  <form
+                    className="inline-edit-form"
+                    onSubmit={(event) => updateVisaDocument(event, item.id, item.text)}
+                  >
+                    <label>
+                      <span>Название</span>
+                      <input
+                        name="title"
+                        defaultValue={documentTitle(item.text)}
+                        autoFocus
+                        required
+                      />
+                    </label>
+                    <label>
+                      <span>Ссылка/пометка</span>
+                      <input
+                        name="url"
+                        defaultValue={editableDocumentValue(value)}
+                        placeholder={documentInputPlaceholder(value)}
+                      />
+                    </label>
+                    <label>
+                      <span>Фото из галереи</span>
+                      <input name="photoFile" type="file" accept="image/*" />
+                    </label>
+                    <SaveCancelActions onCancel={() => setEditingDocId(null)} />
+                  </form>
+                ) : (
+                  <>
+                    <h3>{documentTitle(item.text)}</h3>
+                    <p className="muted-text">{documentMeta(item.text)}</p>
+                    <div className="card-actions">
+                      <button
+                        className="chip-button"
+                        type="button"
+                        onClick={() => setEditingDocId(item.id)}
+                      >
+                        <Pencil size={14} />
+                        <span>Править</span>
+                      </button>
+                      <button
+                        className="chip-button"
+                        type="button"
+                        onClick={() =>
+                          commit((previous) => ({
+                            ...previous,
+                            checklistItems: previous.checklistItems.filter(
+                              (candidate) => candidate.id !== item.id,
+                            ),
+                          }))
+                        }
+                      >
+                        <Trash2 size={14} />
+                        <span>Удалить</span>
+                      </button>
+                      <ExternalLinkButton
+                        href={value}
+                        label={isEmbeddedImage(value) ? 'Фото' : 'Открыть'}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            </article>
+          )
+        })}
       </div>
     </section>
   )
@@ -3402,7 +3469,30 @@ function documentTitle(text: string) {
 }
 
 function documentMeta(text: string) {
-  return text.split('—').slice(1).join('—').trim() || 'Добавь ссылку или пометку'
+  const value = documentValue(text)
+  if (!value) return 'Добавь ссылку или пометку'
+  if (isEmbeddedImage(value)) return 'Фото из галереи'
+  return value
+}
+
+function documentValue(text: string) {
+  return text.split('—').slice(1).join('—').trim()
+}
+
+function formatDocumentText(title: string, value: string) {
+  return value ? `${title} — ${value}` : title
+}
+
+function isEmbeddedImage(value: string) {
+  return value.startsWith('data:image/')
+}
+
+function editableDocumentValue(value: string) {
+  return isEmbeddedImage(value) ? '' : value
+}
+
+function documentInputPlaceholder(value: string) {
+  return isEmbeddedImage(value) ? 'Фото уже загружено' : 'Ссылка на QR/скрин'
 }
 
 function formatPhraseText({

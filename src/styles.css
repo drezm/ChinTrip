@@ -875,6 +875,13 @@ select:focus {
     #d9f3ee;
 }
 
+.document-preview img {
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
 .document-body,
 .phrase-card {
   display: grid;
