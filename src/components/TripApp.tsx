@@ -184,7 +184,8 @@ export function TripApp({ initialState }: TripAppProps) {
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>(
     'saved',
   )
-  const saveVersion = useRef(0)
+  const pendingSave = useRef<TripState | null>(null)
+  const isSaving = useRef(false)
   const isOnline = useOnlineStatus()
 
   const currentTraveler =
@@ -214,25 +215,40 @@ export function TripApp({ initialState }: TripAppProps) {
     [state.expenses, state.settings.cnyToRubRate],
   )
 
-  async function persist(next: TripState) {
-    const version = saveVersion.current + 1
-    saveVersion.current = version
+  async function flushSaveQueue() {
+    if (isSaving.current) return
+    isSaving.current = true
     setSaveStatus('saving')
+
     try {
-      const saved = await saveTripState({ data: next })
-      if (saveVersion.current === version) {
-        setState(saved)
-        setSaveStatus('saved')
+      while (pendingSave.current) {
+        const next = pendingSave.current
+        pendingSave.current = null
+        const saved = await saveTripState({ data: next })
+
+        if (!pendingSave.current) {
+          setState(saved)
+          setSaveStatus('saved')
+        }
       }
     } catch {
-      if (saveVersion.current === version) setSaveStatus('error')
+      if (!pendingSave.current) setSaveStatus('error')
+    } finally {
+      isSaving.current = false
+      if (pendingSave.current) void flushSaveQueue()
     }
+  }
+
+  function queueSave(next: TripState) {
+    pendingSave.current = next
+    setSaveStatus('saving')
+    void flushSaveQueue()
   }
 
   const commit: Commit = (updater) => {
     setState((previous) => {
       const next = updater(previous)
-      void persist(next)
+      queueSave(next)
       return next
     })
   }
@@ -351,7 +367,7 @@ export function TripApp({ initialState }: TripAppProps) {
             onTravelerChange={setCurrentTravelerId}
             onStateReplace={(next) => {
               setState(next)
-              void persist(next)
+              queueSave(next)
             }}
             onLock={handleLock}
           />
@@ -847,6 +863,7 @@ function PlacesView({ state, commit }: { state: TripState; commit: Commit }) {
     'all',
     isPlaceSectionFilter,
   )
+  const [isAddingSection, setIsAddingSection] = useState(false)
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null)
   const placeSections = getPlaceSections(state)
   const visiblePlaces =
@@ -935,10 +952,10 @@ function PlacesView({ state, commit }: { state: TripState; commit: Commit }) {
     const form = event.currentTarget
     const title = getFormString(new FormData(form), 'title')
     if (!title) return
+    const id = makePlaceSectionId(title, placeSections)
 
     commit((previous) => {
       const existingSections = getPlaceSections(previous)
-      const id = makePlaceSectionId(title, existingSections)
 
       return {
         ...previous,
@@ -952,7 +969,8 @@ function PlacesView({ state, commit }: { state: TripState; commit: Commit }) {
         ],
       }
     })
-    setActiveSectionId(makePlaceSectionId(title, placeSections))
+    setActiveSectionId(id)
+    setIsAddingSection(false)
     form.reset()
   }
 
@@ -1006,14 +1024,7 @@ function PlacesView({ state, commit }: { state: TripState; commit: Commit }) {
         aside={`${visiblePlaces.length}/${state.places.length} ${pluralRu(state.places.length, ['точка', 'точки', 'точек'])}`}
       />
       <article className="place-sections-panel">
-        <div className="title-row">
-          <div>
-            <p className="eyebrow">Разделы</p>
-            <h3>Быстрые подборки</h3>
-          </div>
-          <MapPin size={20} />
-        </div>
-        <div className="place-section-list">
+        <div className="place-section-list" aria-label="Разделы мест">
           <button
             className={`place-section-chip ${activeSectionId === 'all' ? 'active' : ''}`}
             type="button"
@@ -1083,18 +1094,36 @@ function PlacesView({ state, commit }: { state: TripState; commit: Commit }) {
               </div>
             )
           })}
-        </div>
-        <CreateDetails title="Создать раздел" icon={<Plus size={18} />}>
-          <form className="quick-form compact-form" onSubmit={addPlaceSection}>
-            <label>
-              <span>Название</span>
-              <input name="title" placeholder="Кофейни, дети, природа" required />
-            </label>
-            <button className="icon-button primary" type="submit" title="Добавить">
-              <Plus size={20} />
+          {isAddingSection ? (
+            <form className="place-section-create" onSubmit={addPlaceSection}>
+              <input
+                name="title"
+                placeholder="Новый раздел"
+                autoFocus
+                aria-label="Название нового раздела"
+              />
+              <button type="submit" title="Сохранить раздел">
+                <Save size={15} />
+              </button>
+              <button
+                type="button"
+                title="Отмена"
+                onClick={() => setIsAddingSection(false)}
+              >
+                <X size={15} />
+              </button>
+            </form>
+          ) : (
+            <button
+              className="place-section-add"
+              type="button"
+              title="Создать раздел"
+              onClick={() => setIsAddingSection(true)}
+            >
+              <Plus size={18} />
             </button>
-          </form>
-        </CreateDetails>
+          )}
+        </div>
       </article>
 
       <CreateDetails title="Добавить место" icon={<Plus size={18} />}>
@@ -1170,7 +1199,7 @@ function PlacesView({ state, commit }: { state: TripState; commit: Commit }) {
               </div>
               {editingPlaceId === place.id ? (
                 <form
-                  className="edit-form"
+                  className="edit-form place-edit-form"
                   onSubmit={(event) => updatePlace(event, place.id)}
                 >
                   <label>
@@ -3441,7 +3470,7 @@ function resizeImageFile(file: File) {
       const image = new Image()
       image.onerror = () => reject(new Error('Не удалось подготовить фото'))
       image.onload = () => {
-        const maxSize = 1400
+        const maxSize = 960
         const scale = Math.min(1, maxSize / Math.max(image.width, image.height))
         const width = Math.max(1, Math.round(image.width * scale))
         const height = Math.max(1, Math.round(image.height * scale))
@@ -3455,7 +3484,7 @@ function resizeImageFile(file: File) {
         }
 
         context.drawImage(image, 0, 0, width, height)
-        resolve(canvas.toDataURL('image/jpeg', 0.82))
+        resolve(canvas.toDataURL('image/jpeg', 0.72))
       }
       image.src = String(reader.result)
     }

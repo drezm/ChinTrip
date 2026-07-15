@@ -272,7 +272,7 @@ a {
   border: 1px solid rgba(23, 32, 51, 0.09);
   border-radius: 8px;
   background: #ffffff;
-  box-shadow: 0 10px 24px rgba(23, 32, 51, 0.055);
+  box-shadow: 0 5px 14px rgba(23, 32, 51, 0.045);
 }
 
 .quick-form {
@@ -343,12 +343,23 @@ a {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   border-radius: 8px;
   padding: 12px;
   background: #f8fafc;
 }
 
+.quick-form > *,
+.edit-form > * {
+  min-width: 0;
+}
+
 .edit-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   grid-column: 1 / -1;
   gap: 10px;
 }
@@ -378,6 +389,8 @@ legend {
 input,
 select {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   min-height: 42px;
   border: 1px solid #d0d5dd;
   border-radius: 8px;
@@ -385,6 +398,13 @@ select {
   color: #172033;
   background: #ffffff;
   outline: none;
+}
+
+input[type="file"] {
+  min-height: 38px;
+  padding: 7px;
+  overflow: hidden;
+  font-size: 14px;
 }
 
 input:focus,
@@ -597,7 +617,9 @@ select:focus {
 .info-content,
 .checklist-card {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
+  min-width: 0;
   padding: 12px;
 }
 
@@ -926,18 +948,23 @@ select:focus {
 }
 
 .place-sections-panel {
-  display: grid;
-  gap: 12px;
+  overflow: hidden;
+  padding: 8px;
 }
 
 .place-section-list {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
 }
 
 .place-section-chip {
   display: inline-flex;
+  flex: 0 0 auto;
   min-height: 40px;
   align-items: center;
   gap: 8px;
@@ -976,6 +1003,11 @@ button.place-section-chip {
   padding-right: 5px;
 }
 
+.place-section-chip strong,
+.section-select-button strong {
+  white-space: nowrap;
+}
+
 .section-select-button {
   display: inline-flex;
   min-height: 30px;
@@ -987,7 +1019,9 @@ button.place-section-chip {
 }
 
 .section-action-button,
-.section-edit-form button {
+.section-edit-form button,
+.place-section-create button,
+.place-section-add {
   display: inline-grid;
   width: 30px;
   height: 30px;
@@ -996,6 +1030,12 @@ button.place-section-chip {
   color: inherit;
   background: rgba(255, 255, 255, 0.65);
   cursor: pointer;
+}
+
+.place-section-add {
+  flex: 0 0 auto;
+  color: #0e9384;
+  background: #d9f3ee;
 }
 
 .section-action-button:disabled {
@@ -1012,6 +1052,51 @@ button.place-section-chip {
 
 .section-edit-form input {
   min-height: 34px;
+}
+
+.place-section-create {
+  display: grid;
+  grid-template-columns: minmax(150px, 220px) 30px 30px;
+  flex: 0 0 auto;
+  gap: 6px;
+  align-items: center;
+  min-height: 40px;
+  border-radius: 8px;
+  padding: 5px 6px;
+  background: #f8fafc;
+}
+
+.place-section-create input {
+  min-height: 30px;
+  padding: 5px 8px;
+}
+
+.place-card:has(.edit-form) {
+  grid-column: 1 / -1;
+}
+
+.place-card:has(.edit-form) > img,
+.place-card:has(.edit-form) > .image-placeholder {
+  display: none;
+}
+
+.place-card:has(.edit-form) .edit-form {
+  grid-template-columns: 1fr;
+  padding: 0;
+  background: transparent;
+}
+
+.place-edit-form {
+  inline-size: 100%;
+  max-inline-size: 100%;
+}
+
+.place-edit-form label {
+  overflow: hidden;
+}
+
+.place-edit-form .wide-field {
+  grid-column: auto;
 }
 
 .chip-button,
@@ -1340,14 +1425,13 @@ button.place-section-chip {
   }
 
   .place-section-list {
-    display: grid;
-    grid-template-columns: 1fr;
+    display: flex;
   }
 
   .place-section-chip,
   button.place-section-chip,
   .section-select-button {
-    width: 100%;
+    width: auto;
   }
 
   .section-select-button {
@@ -1359,6 +1443,14 @@ button.place-section-chip {
   }
 
   .edit-form {
+    grid-template-columns: 1fr;
+  }
+
+  .place-card:has(.edit-form) .edit-form {
+    grid-template-columns: 1fr;
+  }
+
+  .edit-actions {
     grid-template-columns: 1fr;
   }
 
