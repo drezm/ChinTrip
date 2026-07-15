@@ -31,6 +31,7 @@ body {
 
 button,
 input,
+textarea,
 select {
   font: inherit;
 }
@@ -387,6 +388,7 @@ legend {
 }
 
 input,
+textarea,
 select {
   width: 100%;
   min-width: 0;
@@ -398,6 +400,11 @@ select {
   color: #172033;
   background: #ffffff;
   outline: none;
+}
+
+textarea {
+  min-height: 76px;
+  resize: vertical;
 }
 
 input[type="file"] {
@@ -599,12 +606,53 @@ select:focus {
   overflow: hidden;
 }
 
-.place-card img,
-.image-placeholder {
+.image-placeholder,
+.place-gallery,
+.place-gallery-slide img {
   width: 100%;
   aspect-ratio: 16 / 10;
-  object-fit: cover;
   background: #eef4ff;
+}
+
+.place-gallery {
+  position: relative;
+  overflow: hidden;
+}
+
+.place-gallery-track {
+  display: flex;
+  height: 100%;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.place-gallery-track::-webkit-scrollbar {
+  display: none;
+}
+
+.place-gallery-slide {
+  flex: 0 0 100%;
+  min-width: 0;
+  scroll-snap-align: start;
+}
+
+.place-gallery-slide img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-counter {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  border-radius: 999px;
+  padding: 4px 8px;
+  color: #ffffff;
+  background: rgba(23, 32, 51, 0.72);
+  font-size: 11px;
+  font-weight: 850;
 }
 
 .image-placeholder {
@@ -880,6 +928,24 @@ select:focus {
   height: 100%;
   border-radius: 8px;
   object-fit: cover;
+}
+
+.document-pdf-preview {
+  width: 100%;
+  height: 100%;
+  min-height: 108px;
+  border: 0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.document-file-preview {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  color: #0e9384;
+  font-size: 12px;
+  font-weight: 850;
 }
 
 .document-body,

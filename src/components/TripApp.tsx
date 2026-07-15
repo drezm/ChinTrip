@@ -6,6 +6,7 @@ import {
   CircleDollarSign,
   Clock,
   ExternalLink,
+  FileText,
   ImageIcon,
   KeyRound,
   Landmark,
@@ -881,7 +882,14 @@ function PlacesView({ state, commit }: { state: TripState; commit: Commit }) {
     const dayId = getFormString(data, 'dayId') || undefined
     const id = makeId('place')
     const category = getFormString(data, 'category') || placeSections[0]?.id || 'sight'
-    const photoUrl = await getPhotoValue(data, getFormString(data, 'photoUrl'))
+    let photoUrl = ''
+
+    try {
+      photoUrl = await getPlacePhotosValue(data, '')
+    } catch (error) {
+      window.alert(getErrorMessage(error))
+      return
+    }
 
     commit((previous) => ({
       ...previous,
@@ -923,7 +931,15 @@ function PlacesView({ state, commit }: { state: TripState; commit: Commit }) {
     const city = getFormString(data, 'city')
     if (!name || !city) return
     const dayId = getFormString(data, 'dayId')
-    const photoUrl = await getPhotoValue(data, getFormString(data, 'photoUrl'))
+    const currentPlace = state.places.find((place) => place.id === placeId)
+    let photoUrl = currentPlace?.photoUrl ?? ''
+
+    try {
+      photoUrl = await getPlacePhotosValue(data, photoUrl)
+    } catch (error) {
+      window.alert(getErrorMessage(error))
+      return
+    }
 
     commit((previous) => ({
       ...previous,
@@ -1150,11 +1166,14 @@ function PlacesView({ state, commit }: { state: TripState; commit: Commit }) {
           </label>
           <label className="wide-field">
             <span>Фото из галереи</span>
-            <input name="photoFile" type="file" accept="image/*" />
+            <input name="photoFile" type="file" accept="image/*" multiple />
           </label>
           <label className="wide-field">
-            <span>Фото по ссылке</span>
-            <input name="photoUrl" placeholder="https://..." />
+            <span>Ссылки на фото</span>
+            <textarea
+              name="photoUrl"
+              placeholder="https://... по одной ссылке на строку"
+            />
           </label>
           <label className="wide-field">
             <span>Заметка</span>
@@ -1169,7 +1188,7 @@ function PlacesView({ state, commit }: { state: TripState; commit: Commit }) {
       <div className="card-grid">
         {visiblePlaces.map((place) => (
           <article className="place-card" key={place.id}>
-            <PlaceImage src={place.photoUrl} />
+            <PlaceGallery photos={parsePlacePhotos(place.photoUrl)} />
             <div className="card-body">
               <div className="title-row">
                 <div>
@@ -1234,11 +1253,15 @@ function PlacesView({ state, commit }: { state: TripState; commit: Commit }) {
                   </label>
                   <label className="wide-field">
                     <span>Фото из галереи</span>
-                    <input name="photoFile" type="file" accept="image/*" />
+                    <input name="photoFile" type="file" accept="image/*" multiple />
                   </label>
                   <label className="wide-field">
-                    <span>Фото по ссылке</span>
-                    <input name="photoUrl" defaultValue={place.photoUrl} />
+                    <span>Ссылки на фото</span>
+                    <textarea
+                      name="photoUrl"
+                      defaultValue={editablePlacePhotoText(place.photoUrl)}
+                      placeholder={placePhotoInputPlaceholder(place.photoUrl)}
+                    />
                   </label>
                   <label className="wide-field">
                     <span>Заметка</span>
@@ -2453,7 +2476,14 @@ function DocumentsView({ state, commit }: { state: TripState; commit: Commit }) 
     const data = new FormData(form)
     const title = getFormString(data, 'title')
     if (!title) return
-    const documentValue = await getPhotoValue(data, getFormString(data, 'url'))
+    let documentValue = ''
+
+    try {
+      documentValue = await getDocumentFileValue(data, getFormString(data, 'url'))
+    } catch (error) {
+      window.alert(getErrorMessage(error))
+      return
+    }
 
     commit((previous) => {
       const checklist =
@@ -2496,8 +2526,15 @@ function DocumentsView({ state, commit }: { state: TripState; commit: Commit }) 
     event.preventDefault()
     const data = new FormData(event.currentTarget)
     const typedValue = getFormString(data, 'documentUrl')
-    const fallback = typedValue || (isEmbeddedImage(currentValue) ? currentValue : '')
-    const value = await getPhotoValue(data, fallback)
+    const fallback = typedValue || (isEmbeddedFile(currentValue) ? currentValue : '')
+    let value = ''
+
+    try {
+      value = await getDocumentFileValue(data, fallback)
+    } catch (error) {
+      window.alert(getErrorMessage(error))
+      return
+    }
 
     commit((previous) =>
       source === 'hotel'
@@ -2530,8 +2567,15 @@ function DocumentsView({ state, commit }: { state: TripState; commit: Commit }) 
     if (!title) return
     const existingValue = documentValue(currentText)
     const typedValue = getFormString(data, 'url')
-    const fallback = typedValue || (isEmbeddedImage(existingValue) ? existingValue : '')
-    const value = await getPhotoValue(data, fallback)
+    const fallback = typedValue || (isEmbeddedFile(existingValue) ? existingValue : '')
+    let value = ''
+
+    try {
+      value = await getDocumentFileValue(data, fallback)
+    } catch (error) {
+      window.alert(getErrorMessage(error))
+      return
+    }
 
     commit((previous) => ({
       ...previous,
@@ -2563,8 +2607,8 @@ function DocumentsView({ state, commit }: { state: TripState; commit: Commit }) 
             <input name="url" placeholder="Фото, файл или где лежит" />
           </label>
           <label className="wide-field">
-            <span>Фото из галереи</span>
-            <input name="photoFile" type="file" accept="image/*" />
+            <span>Файл или фото</span>
+            <input name="documentFile" type="file" accept="image/*,application/pdf" />
           </label>
           <button className="icon-button primary" type="submit" title="Добавить">
             <Plus size={20} />
@@ -2576,13 +2620,7 @@ function DocumentsView({ state, commit }: { state: TripState; commit: Commit }) 
         {linkedDocs.map((doc) => (
           <article className="document-card" key={doc.id}>
             <div className={`document-preview ${doc.href ? 'ready' : ''}`}>
-              {isEmbeddedImage(doc.href) ? (
-                <img src={doc.href} alt="" />
-              ) : doc.href ? (
-                <QrCode size={34} />
-              ) : (
-                <ImageIcon size={34} />
-              )}
+              <DocumentPreview value={doc.href} fallback={<ImageIcon size={34} />} />
             </div>
             <div className="document-body">
               <p className="tag">{doc.label}</p>
@@ -2605,8 +2643,12 @@ function DocumentsView({ state, commit }: { state: TripState; commit: Commit }) 
                     />
                   </label>
                   <label>
-                    <span>Фото из галереи</span>
-                    <input name="photoFile" type="file" accept="image/*" />
+                    <span>Файл или фото</span>
+                    <input
+                      name="documentFile"
+                      type="file"
+                      accept="image/*,application/pdf"
+                    />
                   </label>
                   <SaveCancelActions onCancel={() => setEditingDocId(null)} />
                 </form>
@@ -2622,7 +2664,7 @@ function DocumentsView({ state, commit }: { state: TripState; commit: Commit }) 
                   </button>
                   <ExternalLinkButton
                     href={doc.href}
-                    label={isEmbeddedImage(doc.href) ? 'Фото' : 'Открыть'}
+                    label={documentOpenLabel(doc.href)}
                   />
                 </div>
               )}
@@ -2636,11 +2678,7 @@ function DocumentsView({ state, commit }: { state: TripState; commit: Commit }) 
           return (
             <article className="document-card" key={item.id}>
               <div className={`document-preview ${value ? 'ready' : ''}`}>
-                {isEmbeddedImage(value) ? (
-                  <img src={value} alt="" />
-                ) : (
-                  <KeyRound size={34} />
-                )}
+                <DocumentPreview value={value} fallback={<KeyRound size={34} />} />
               </div>
               <div className="document-body">
                 <p className="tag">Документ</p>
@@ -2667,8 +2705,12 @@ function DocumentsView({ state, commit }: { state: TripState; commit: Commit }) 
                       />
                     </label>
                     <label>
-                      <span>Фото из галереи</span>
-                      <input name="photoFile" type="file" accept="image/*" />
+                      <span>Файл или фото</span>
+                      <input
+                        name="documentFile"
+                        type="file"
+                        accept="image/*,application/pdf"
+                      />
                     </label>
                     <SaveCancelActions onCancel={() => setEditingDocId(null)} />
                   </form>
@@ -2702,7 +2744,7 @@ function DocumentsView({ state, commit }: { state: TripState; commit: Commit }) 
                       </button>
                       <ExternalLinkButton
                         href={value}
-                        label={isEmbeddedImage(value) ? 'Фото' : 'Открыть'}
+                        label={documentOpenLabel(value)}
                       />
                     </div>
                   </>
@@ -3245,14 +3287,10 @@ function CreateDetails({
   )
 }
 
-function PlaceImage({ src }: { src: string }) {
-  const [failed, setFailed] = useState(false)
+function PlaceGallery({ photos }: { photos: string[] }) {
+  const visiblePhotos = photos.filter(Boolean)
 
-  useEffect(() => {
-    setFailed(false)
-  }, [src])
-
-  if (!src || failed) {
+  if (!visiblePhotos.length) {
     return (
       <div className="image-placeholder">
         <ImageIcon size={24} />
@@ -3260,7 +3298,53 @@ function PlaceImage({ src }: { src: string }) {
     )
   }
 
-  return <img src={src} alt="" loading="lazy" onError={() => setFailed(true)} />
+  return (
+    <div className="place-gallery" aria-label="Фотографии места">
+      <div className="place-gallery-track">
+        {visiblePhotos.map((photo, index) => (
+          <div className="place-gallery-slide" key={`${photo}-${index}`}>
+            <img src={photo} alt="" loading="lazy" />
+          </div>
+        ))}
+      </div>
+      {visiblePhotos.length > 1 ? (
+        <span className="photo-counter">{visiblePhotos.length} фото</span>
+      ) : null}
+    </div>
+  )
+}
+
+function DocumentPreview({
+  value,
+  fallback,
+}: {
+  value: string
+  fallback: ReactNode
+}) {
+  if (isEmbeddedImage(value)) return <img src={value} alt="" />
+
+  if (isPdfDocument(value)) {
+    return (
+      <iframe
+        className="document-pdf-preview"
+        src={value}
+        title="Предпросмотр PDF"
+      />
+    )
+  }
+
+  if (isEmbeddedFile(value)) {
+    return (
+      <div className="document-file-preview">
+        <FileText size={30} />
+        <span>{documentFileLabel(value)}</span>
+      </div>
+    )
+  }
+
+  if (value) return <QrCode size={34} />
+
+  return fallback
 }
 
 function SectionHeading({
@@ -3472,6 +3556,8 @@ function documentMeta(text: string) {
   const value = documentValue(text)
   if (!value) return 'Добавь ссылку или пометку'
   if (isEmbeddedImage(value)) return 'Фото из галереи'
+  if (isPdfDocument(value)) return 'PDF-файл'
+  if (isEmbeddedFile(value)) return `Файл: ${documentFileLabel(value)}`
   return value
 }
 
@@ -3487,12 +3573,39 @@ function isEmbeddedImage(value: string) {
   return value.startsWith('data:image/')
 }
 
+function isEmbeddedFile(value: string) {
+  return value.startsWith('data:')
+}
+
+function isPdfDocument(value: string) {
+  const lowerValue = value.toLowerCase()
+  return (
+    lowerValue.startsWith('data:application/pdf') ||
+    lowerValue.endsWith('.pdf') ||
+    lowerValue.includes('.pdf?')
+  )
+}
+
+function documentFileLabel(value: string) {
+  const mimeType = value.match(/^data:([^;,]+)/)?.[1]
+  if (!mimeType) return 'Файл'
+  if (mimeType === 'application/pdf') return 'PDF'
+  return mimeType.split('/').pop()?.toUpperCase() ?? 'Файл'
+}
+
+function documentOpenLabel(value: string) {
+  if (isEmbeddedImage(value)) return 'Фото'
+  if (isPdfDocument(value)) return 'PDF'
+  if (isEmbeddedFile(value)) return 'Файл'
+  return 'Открыть'
+}
+
 function editableDocumentValue(value: string) {
-  return isEmbeddedImage(value) ? '' : value
+  return isEmbeddedFile(value) ? '' : value
 }
 
 function documentInputPlaceholder(value: string) {
-  return isEmbeddedImage(value) ? 'Фото уже загружено' : 'Ссылка на QR/скрин'
+  return isEmbeddedFile(value) ? 'Файл уже загружен' : 'Ссылка на QR/скрин'
 }
 
 function formatPhraseText({
@@ -3543,13 +3656,38 @@ function getFormNumber(data: FormData, name: string) {
   return Number.isFinite(value) ? value : 0
 }
 
-async function getPhotoValue(data: FormData, fallback: string) {
-  const file = data.get('photoFile')
-  if (file instanceof File && file.size > 0) {
-    return resizeImageFile(file)
+const maxDocumentFileSize = 4 * 1024 * 1024
+
+async function getPlacePhotosValue(data: FormData, fallback: string) {
+  const fallbackPhotos = parsePlacePhotos(fallback)
+  const filePhotos = await getImageFileValues(data, 'photoFile')
+  const linkedPhotos = parsePhotoLinks(getFormString(data, 'photoUrl'))
+  const preservedUploadedPhotos =
+    filePhotos.length === 0 ? fallbackPhotos.filter(isEmbeddedImage) : []
+  const nextPhotos = [...preservedUploadedPhotos, ...filePhotos, ...linkedPhotos]
+
+  return serializePlacePhotos(nextPhotos.length ? nextPhotos : fallbackPhotos)
+}
+
+async function getImageFileValues(data: FormData, name: string) {
+  const files = data
+    .getAll(name)
+    .filter((file): file is File => file instanceof File && file.size > 0)
+
+  return Promise.all(files.map((file) => resizeImageFile(file)))
+}
+
+async function getDocumentFileValue(data: FormData, fallback: string) {
+  const file = data.get('documentFile')
+  if (!(file instanceof File) || file.size === 0) return fallback
+
+  if (file.type.startsWith('image/')) return resizeImageFile(file)
+
+  if (file.size > maxDocumentFileSize) {
+    throw new Error('Файл слишком большой. Лучше загрузить PDF до 4 МБ.')
   }
 
-  return fallback
+  return readFileAsDataUrl(file)
 }
 
 function resizeImageFile(file: File) {
@@ -3580,6 +3718,67 @@ function resizeImageFile(file: File) {
     }
     reader.readAsDataURL(file)
   })
+}
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onerror = () => reject(new Error('Не удалось прочитать файл'))
+    reader.onload = () => resolve(String(reader.result))
+    reader.readAsDataURL(file)
+  })
+}
+
+function parsePlacePhotos(value: string) {
+  const trimmed = value.trim()
+  if (!trimmed) return []
+
+  if (trimmed.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(trimmed) as unknown
+      if (Array.isArray(parsed)) {
+        return parsed.filter(
+          (photo): photo is string => typeof photo === 'string' && Boolean(photo.trim()),
+        )
+      }
+    } catch {
+      return [trimmed]
+    }
+  }
+
+  return [trimmed]
+}
+
+function serializePlacePhotos(photos: string[]) {
+  const uniquePhotos = Array.from(
+    new Set(photos.map((photo) => photo.trim()).filter(Boolean)),
+  )
+  if (uniquePhotos.length <= 1) return uniquePhotos[0] ?? ''
+  return JSON.stringify(uniquePhotos)
+}
+
+function parsePhotoLinks(value: string) {
+  return value
+    .split(/\n+/)
+    .map((photo) => photo.trim())
+    .filter(Boolean)
+}
+
+function editablePlacePhotoText(value: string) {
+  return parsePlacePhotos(value)
+    .filter((photo) => !isEmbeddedImage(photo))
+    .join('\n')
+}
+
+function placePhotoInputPlaceholder(value: string) {
+  const hasUploadedPhotos = parsePlacePhotos(value).some(isEmbeddedImage)
+  return hasUploadedPhotos
+    ? 'Фото уже загружены. Можно добавить ссылки по одной на строку'
+    : 'https://... по одной ссылке на строку'
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : 'Не удалось обработать файл'
 }
 
 function makeId(prefix: string) {
