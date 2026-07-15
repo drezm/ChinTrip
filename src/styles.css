@@ -637,6 +637,14 @@ select:focus {
   scroll-snap-align: start;
 }
 
+.place-gallery-open {
+  display: block;
+  width: 100%;
+  height: 100%;
+  color: inherit;
+  text-decoration: none;
+}
+
 .place-gallery-slide img {
   display: block;
   height: 100%;
@@ -907,6 +915,7 @@ select:focus {
   display: grid;
   min-height: 108px;
   place-items: center;
+  overflow: hidden;
   border-radius: 8px;
   color: #667085;
   background:
@@ -930,10 +939,33 @@ select:focus {
   object-fit: cover;
 }
 
+.document-preview-stack {
+  position: relative;
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-height: 108px;
+  place-items: center;
+}
+
+.document-preview-hitbox {
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  color: transparent;
+  text-decoration: none;
+}
+
+.document-preview-hitbox:focus-visible {
+  outline: 3px solid rgba(14, 147, 132, 0.32);
+  outline-offset: -3px;
+}
+
 .document-pdf-preview {
   width: 100%;
   height: 100%;
   min-height: 108px;
+  pointer-events: none;
   border: 0;
   border-radius: 8px;
   background: #ffffff;

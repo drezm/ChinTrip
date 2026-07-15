@@ -3303,7 +3303,15 @@ function PlaceGallery({ photos }: { photos: string[] }) {
       <div className="place-gallery-track">
         {visiblePhotos.map((photo, index) => (
           <div className="place-gallery-slide" key={`${photo}-${index}`}>
-            <img src={photo} alt="" loading="lazy" />
+            <a
+              className="place-gallery-open"
+              href={photo}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={`Открыть фото ${index + 1}`}
+            >
+              <img src={photo} alt="" loading="lazy" />
+            </a>
           </div>
         ))}
       </div>
@@ -3321,30 +3329,43 @@ function DocumentPreview({
   value: string
   fallback: ReactNode
 }) {
-  if (isEmbeddedImage(value)) return <img src={value} alt="" />
+  if (!value) return fallback
 
-  if (isPdfDocument(value)) {
-    return (
+  let preview: ReactNode
+
+  if (isEmbeddedImage(value)) {
+    preview = <img src={value} alt="" />
+  } else if (isPdfDocument(value)) {
+    preview = (
       <iframe
         className="document-pdf-preview"
         src={value}
         title="Предпросмотр PDF"
       />
     )
-  }
-
-  if (isEmbeddedFile(value)) {
-    return (
+  } else if (isEmbeddedFile(value)) {
+    preview = (
       <div className="document-file-preview">
         <FileText size={30} />
         <span>{documentFileLabel(value)}</span>
       </div>
     )
+  } else {
+    preview = <QrCode size={34} />
   }
 
-  if (value) return <QrCode size={34} />
-
-  return fallback
+  return (
+    <div className="document-preview-stack">
+      {preview}
+      <a
+        className="document-preview-hitbox"
+        href={value}
+        target="_blank"
+        rel="noreferrer"
+        aria-label={`Открыть ${documentOpenLabel(value).toLowerCase()}`}
+      />
+    </div>
+  )
 }
 
 function SectionHeading({
