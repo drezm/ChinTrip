@@ -189,6 +189,7 @@ export function TripApp({ initialState }: TripAppProps) {
   const pendingSave = useRef<TripState | null>(null)
   const isSaving = useRef(false)
   const isOnline = useOnlineStatus()
+  const rateRefreshAttempted = useRef(false)
 
   const currentTraveler =
     state.travelers.find((traveler) => traveler.id === currentTravelerId) ??
@@ -254,6 +255,20 @@ export function TripApp({ initialState }: TripAppProps) {
       return next
     })
   }
+
+  useEffect(() => {
+    if (!isOnline || rateRefreshAttempted.current) return
+    if (isRateFresh(state.settings.rateUpdatedAt)) return
+
+    rateRefreshAttempted.current = true
+    void refreshRate()
+      .then((next) => {
+        setState((previous) => ({ ...previous, settings: next.settings }))
+      })
+      .catch(() => {
+        rateRefreshAttempted.current = false
+      })
+  }, [isOnline, state.settings.rateUpdatedAt])
 
   async function handleLock() {
     await lockTrip()
@@ -1025,15 +1040,14 @@ function PlacesView({ state, commit }: { state: TripState; commit: Commit }) {
                     >
                       <Pencil size={14} />
                     </button>
-                    <button
-                      className="section-action-button"
-                      type="button"
+                    <ConfirmDeleteButton
+                      buttonClassName="section-action-button"
                       title="Удалить раздел"
                       disabled={placeSections.length <= 1}
-                      onClick={() => removePlaceSection(section.id)}
+                      onConfirm={() => removePlaceSection(section.id)}
                     >
                       <Trash2 size={14} />
-                    </button>
+                    </ConfirmDeleteButton>
                   </>
                 )}
               </div>
@@ -1465,7 +1479,7 @@ function HotelsView({ state, commit }: { state: TripState; commit: Commit }) {
                   {formatRawMoney(hotel.price, hotel.currency)}
                 </span>
                 <ExternalLinkButton href={hotel.url} label="Бронь" />
-                <ExternalLinkButton href={hotel.confirmationUrl} label="Файл" />
+                <DocumentOpenButton value={hotel.confirmationUrl} label="Файл" />
               </div>
               {hotel.note ? <p>{hotel.note}</p> : null}
             </div>
@@ -1745,7 +1759,7 @@ function TicketsView({ state, commit }: { state: TripState; commit: Commit }) {
                   {formatRawMoney(ticket.price, ticket.currency)}
                 </span>
                 <ExternalLinkButton href={ticket.url} label="Ссылка" />
-                <ExternalLinkButton href={ticket.fileUrl} label="Файл" />
+                <DocumentOpenButton value={ticket.fileUrl} label="Файл" />
               </div>
             </div>
           </article>
@@ -2329,11 +2343,10 @@ function NotesView({ state, commit }: { state: TripState; commit: Commit }) {
                         >
                           <Pencil size={15} />
                         </button>
-                        <button
-                          className="icon-button tiny quiet"
-                          type="button"
+                        <ConfirmDeleteButton
+                          buttonClassName="icon-button tiny quiet"
                           title="Удалить пункт"
-                          onClick={() =>
+                          onConfirm={() =>
                             commit((previous) => ({
                               ...previous,
                               checklistItems: previous.checklistItems.filter(
@@ -2343,7 +2356,7 @@ function NotesView({ state, commit }: { state: TripState; commit: Commit }) {
                           }
                         >
                           <Trash2 size={15} />
-                        </button>
+                        </ConfirmDeleteButton>
                       </div>
                     </div>
                   ),
@@ -2591,8 +2604,8 @@ function DocumentsView({ state, commit }: { state: TripState; commit: Commit }) 
                     <Pencil size={14} />
                     <span>{doc.href ? 'Изменить' : 'Добавить'}</span>
                   </button>
-                  <ExternalLinkButton
-                    href={doc.href}
+                  <DocumentOpenButton
+                    value={doc.href}
                     label={documentOpenLabel(doc.href)}
                   />
                 </div>
@@ -2656,10 +2669,10 @@ function DocumentsView({ state, commit }: { state: TripState; commit: Commit }) 
                         <Pencil size={14} />
                         <span>Править</span>
                       </button>
-                      <button
-                        className="chip-button"
-                        type="button"
-                        onClick={() =>
+                      <ConfirmDeleteButton
+                        buttonClassName="chip-button"
+                        title="Удалить документ"
+                        onConfirm={() =>
                           commit((previous) => ({
                             ...previous,
                             checklistItems: previous.checklistItems.filter(
@@ -2670,9 +2683,9 @@ function DocumentsView({ state, commit }: { state: TripState; commit: Commit }) 
                       >
                         <Trash2 size={14} />
                         <span>Удалить</span>
-                      </button>
-                      <ExternalLinkButton
-                        href={value}
+                      </ConfirmDeleteButton>
+                      <DocumentOpenButton
+                        value={value}
                         label={documentOpenLabel(value)}
                       />
                     </div>
@@ -2862,10 +2875,10 @@ function PhrasesView({ state, commit }: { state: TripState; commit: Commit }) {
                         <Pencil size={14} />
                         <span>Править</span>
                       </button>
-                      <button
-                        className="chip-button"
-                        type="button"
-                        onClick={() =>
+                      <ConfirmDeleteButton
+                        buttonClassName="chip-button"
+                        title="Удалить фразу"
+                        onConfirm={() =>
                           commit((previous) => ({
                             ...previous,
                             checklistItems: previous.checklistItems.filter(
@@ -2876,7 +2889,7 @@ function PhrasesView({ state, commit }: { state: TripState; commit: Commit }) {
                       >
                         <Trash2 size={14} />
                         <span>Удалить</span>
-                      </button>
+                      </ConfirmDeleteButton>
                     </div>
                   </>
                 )}
@@ -3102,14 +3115,13 @@ function DayItemRow({
             <Pencil size={15} />
           </button>
         ) : null}
-        <button
-          className="icon-button tiny quiet"
-          type="button"
+        <ConfirmDeleteButton
+          buttonClassName="icon-button tiny quiet"
           title="Убрать из дня"
-          onClick={onRemove}
+          onConfirm={onRemove}
         >
           <Trash2 size={15} />
-        </button>
+        </ConfirmDeleteButton>
       </div>
     </div>
   )
@@ -3124,10 +3136,15 @@ function RouteItemDetailModal({
   state: TripState
   onClose: () => void
 }) {
+  useBodyScrollLock(true)
+
   if (item.kind === 'place') {
     const place = state.places.find((candidate) => candidate.id === item.refId)
     if (!place) return null
     const sections = getPlaceSections(state)
+    const day = state.days.find(
+      (candidate) => candidate.id === (place.dayId ?? item.dayId),
+    )
 
     return (
       <div className="modal-backdrop" role="dialog" aria-modal="true">
@@ -3148,6 +3165,19 @@ function RouteItemDetailModal({
             </p>
             <h3>{place.name}</h3>
             <p className="muted-text">{place.city}</p>
+            <div className="detail-info-list">
+              <DetailInfoRow label="Дата" value={day ? formatShortDate(day.date) : ''} />
+              <DetailInfoRow label="Город" value={place.city} />
+              <DetailInfoRow
+                label="Раздел"
+                value={placeCategoryLabel(place.category, sections)}
+              />
+              <DetailInfoRow
+                label="Статус"
+                value={place.status === 'want' ? 'Хочу' : 'Были'}
+              />
+              <DetailInfoRow label="Карта/адрес" value={place.url} />
+            </div>
             {place.note ? <p>{place.note}</p> : null}
             <div className="card-actions">
               <span className={`chip-button ${place.status === 'want' ? 'active' : ''}`}>
@@ -3164,6 +3194,7 @@ function RouteItemDetailModal({
   if (item.kind === 'hotel') {
     const hotel = state.hotels.find((candidate) => candidate.id === item.refId)
     if (!hotel) return null
+    const day = state.days.find((candidate) => candidate.id === item.dayId)
 
     return (
       <div className="modal-backdrop" role="dialog" aria-modal="true">
@@ -3187,11 +3218,24 @@ function RouteItemDetailModal({
               <span>{formatShortDate(hotel.checkIn)} → {formatShortDate(hotel.checkOut)}</span>
               <span>{formatRawMoney(hotel.price, hotel.currency)}</span>
             </div>
+            <div className="detail-info-list">
+              <DetailInfoRow label="Дата в маршруте" value={day ? formatShortDate(day.date) : ''} />
+              <DetailInfoRow label="Город" value={hotel.city} />
+              <DetailInfoRow label="Адрес" value={hotel.address} />
+              <DetailInfoRow label="Заезд" value={formatShortDate(hotel.checkIn)} />
+              <DetailInfoRow label="Выезд" value={formatShortDate(hotel.checkOut)} />
+              <DetailInfoRow
+                label="Стоимость"
+                value={formatRawMoney(hotel.price, hotel.currency)}
+              />
+              <DetailInfoRow label="Бронь" value={hotel.url} />
+              <DetailInfoRow label="Подтверждение" value={hotel.confirmationUrl} />
+            </div>
             {hotel.address ? <p>{hotel.address}</p> : null}
             {hotel.note ? <p>{hotel.note}</p> : null}
             <div className="card-actions">
               <ExternalLinkButton href={hotel.url} label="Бронь" />
-              <ExternalLinkButton href={hotel.confirmationUrl} label="Файл" />
+              <DocumentOpenButton value={hotel.confirmationUrl} label="Файл" />
             </div>
           </div>
         </article>
@@ -3200,6 +3244,17 @@ function RouteItemDetailModal({
   }
 
   return null
+}
+
+function DetailInfoRow({ label, value }: { label: string; value: string }) {
+  if (!value || value === '—') return null
+
+  return (
+    <div className="detail-info-row">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  )
 }
 
 function RouteMapPanel({ state }: { state: TripState }) {
@@ -3367,6 +3422,8 @@ function PhotoLightbox({
   photo: string
   onClose: () => void
 }) {
+  useBodyScrollLock(true)
+
   return (
     <div className="media-lightbox" role="dialog" aria-modal="true">
       <button
@@ -3431,6 +3488,7 @@ function CurrencyCalculator({ rate }: { rate: number }) {
   const [isOpen, setIsOpen] = useState(false)
   const [amount, setAmount] = useState('100')
   const [direction, setDirection] = useState<'cny-rub' | 'rub-cny'>('cny-rub')
+  useBodyScrollLock(isOpen)
   const numericAmount = Number(amount.replace(',', '.'))
   const isValidAmount = Number.isFinite(numericAmount) && numericAmount >= 0
   const result = isValidAmount
@@ -3547,14 +3605,96 @@ function EditDeleteActions({
       >
         <Pencil size={18} />
       </button>
-      <button
-        className="icon-button quiet"
-        type="button"
+      <ConfirmDeleteButton
+        buttonClassName="icon-button quiet"
         title={deleteTitle}
-        onClick={onDelete}
+        onConfirm={onDelete}
       >
         <Trash2 size={18} />
+      </ConfirmDeleteButton>
+    </div>
+  )
+}
+
+function ConfirmDeleteButton({
+  buttonClassName,
+  title,
+  disabled,
+  children,
+  onConfirm,
+}: {
+  buttonClassName: string
+  title: string
+  disabled?: boolean
+  children: ReactNode
+  onConfirm: () => void
+}) {
+  const [isConfirming, setIsConfirming] = useState(false)
+
+  return (
+    <>
+      <button
+        className={buttonClassName}
+        type="button"
+        title={title}
+        disabled={disabled}
+        onClick={() => setIsConfirming(true)}
+      >
+        {children}
       </button>
+      {isConfirming ? (
+        <ConfirmDialog
+          title={title}
+          description="Действие нельзя отменить после сохранения."
+          confirmLabel="Удалить"
+          onCancel={() => setIsConfirming(false)}
+          onConfirm={() => {
+            onConfirm()
+            setIsConfirming(false)
+          }}
+        />
+      ) : null}
+    </>
+  )
+}
+
+function ConfirmDialog({
+  title,
+  description,
+  confirmLabel,
+  onCancel,
+  onConfirm,
+}: {
+  title: string
+  description: string
+  confirmLabel: string
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  useBodyScrollLock(true)
+
+  return (
+    <div className="modal-backdrop confirm-backdrop" role="presentation">
+      <article
+        className="confirm-modal"
+        role="alertdialog"
+        aria-modal="true"
+        aria-label={title}
+      >
+        <div>
+          <p className="eyebrow">Подтверждение</p>
+          <h3>{title}</h3>
+          <p>{description}</p>
+        </div>
+        <div className="confirm-actions">
+          <button className="secondary-button" type="button" onClick={onCancel}>
+            Отмена
+          </button>
+          <button className="danger-button" type="button" onClick={onConfirm}>
+            {confirmLabel}
+          </button>
+        </div>
+      </article>
     </div>
   )
 }
@@ -3614,6 +3754,27 @@ function ExternalLinkButton({ href, label }: { href: string; label: string }) {
   )
 }
 
+function DocumentOpenButton({
+  value,
+  label,
+}: {
+  value: string
+  label: string
+}) {
+  if (!value) return null
+
+  return (
+    <button
+      className="link-chip"
+      type="button"
+      onClick={() => openDocumentValue(value)}
+    >
+      <ExternalLink size={14} />
+      <span>{label}</span>
+    </button>
+  )
+}
+
 function useLocalStorageState<T extends string>(
   key: string,
   fallback: T,
@@ -3657,6 +3818,19 @@ function useOnlineStatus() {
   }, [])
 
   return isOnline
+}
+
+function useBodyScrollLock(locked: boolean) {
+  useEffect(() => {
+    if (!locked) return
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [locked])
 }
 
 function useMinuteClock() {
@@ -3766,7 +3940,7 @@ function openDocumentValue(value: string) {
 
   const targetWindow = window.open('', '_blank')
   if (!targetWindow) {
-    window.location.href = value
+    if (isDocumentUrl(value)) window.location.href = value
     return
   }
 
@@ -3774,7 +3948,12 @@ function openDocumentValue(value: string) {
   targetWindow.document.title = documentOpenLabel(value)
 
   if (!isEmbeddedFile(value)) {
-    targetWindow.location.href = value
+    if (isDocumentUrl(value)) {
+      targetWindow.location.href = value
+      return
+    }
+
+    renderDocumentNote(targetWindow, value)
     return
   }
 
@@ -3811,6 +3990,38 @@ function openDocumentValue(value: string) {
     .catch(() => {
       targetWindow.location.href = value
     })
+}
+
+function isDocumentUrl(value: string) {
+  return /^(https?:|blob:|file:|\/)/i.test(value)
+}
+
+function renderDocumentNote(targetWindow: Window, value: string) {
+  targetWindow.document.body.style.margin = '0'
+  targetWindow.document.body.style.background = '#f4f7f8'
+  targetWindow.document.body.style.color = '#172033'
+  targetWindow.document.body.style.font =
+    '16px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+  targetWindow.document.body.innerHTML = ''
+
+  const wrapper = targetWindow.document.createElement('main')
+  wrapper.style.maxWidth = '720px'
+  wrapper.style.margin = '0 auto'
+  wrapper.style.padding = '32px 18px'
+
+  const title = targetWindow.document.createElement('h1')
+  title.textContent = 'Документ'
+  title.style.margin = '0 0 14px'
+  title.style.fontSize = '28px'
+
+  const note = targetWindow.document.createElement('p')
+  note.textContent = value
+  note.style.margin = '0'
+  note.style.whiteSpace = 'pre-wrap'
+  note.style.lineHeight = '1.5'
+
+  wrapper.append(title, note)
+  targetWindow.document.body.append(wrapper)
 }
 
 function editableDocumentValue(value: string) {
@@ -4115,6 +4326,12 @@ function isTravelerId(value: string): value is TravelerId {
 
 function todayDate() {
   return new Date().toISOString().slice(0, 10)
+}
+
+function isRateFresh(value: string) {
+  const timestamp = Date.parse(value)
+  if (!Number.isFinite(timestamp)) return false
+  return Date.now() - timestamp < 6 * 60 * 60 * 1000
 }
 
 function formatRawMoney(amount: number, currency: Currency) {
