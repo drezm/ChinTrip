@@ -1,5 +1,6 @@
 import {
   Building2,
+  Calculator,
   CalendarDays,
   CalendarPlus,
   Check,
@@ -345,7 +346,7 @@ export function TripApp({ initialState }: TripAppProps) {
 
       <main className="content-area">
         {activeTab === 'today' ? (
-          <TodayView state={state} commit={commit} isOnline={isOnline} />
+          <TodayView state={state} commit={commit} />
         ) : null}
         {activeTab === 'route' ? (
           <RouteView state={state} commit={commit} />
@@ -375,6 +376,8 @@ export function TripApp({ initialState }: TripAppProps) {
         ) : null}
       </main>
 
+      <CurrencyCalculator rate={state.settings.cnyToRubRate} />
+
       <nav className="bottom-tabs" aria-label="Разделы">
         {tabs.map((tab) => (
           <button
@@ -396,11 +399,9 @@ export function TripApp({ initialState }: TripAppProps) {
 function TodayView({
   state,
   commit,
-  isOnline,
 }: {
   state: TripState
   commit: Commit
-  isOnline: boolean
 }) {
   const sortedDays = [...state.days].sort((left, right) =>
     left.date.localeCompare(right.date),
@@ -411,36 +412,15 @@ function TodayView({
   const activeDay =
     sortedDays.find((day) => day.date === today) ??
     (dayIndex >= 0 ? sortedDays[dayIndex] : sortedDays[sortedDays.length - 1])
-  const activeDayIndex = activeDay
-    ? sortedDays.findIndex((day) => day.id === activeDay.id)
-    : -1
   const dayItems = activeDay
     ? state.dayItems
         .filter((item) => item.dayId === activeDay.id)
         .sort((left, right) => left.sortOrder - right.sortOrder)
     : []
-  const activeHotel = activeDay
-    ? state.hotels.find(
-        (hotel) => hotel.checkIn <= activeDay.date && hotel.checkOut >= activeDay.date,
-      )
-    : undefined
-  const dayTickets = activeDay
-    ? state.tickets.filter(
-        (ticket) =>
-          ticket.departAt.slice(0, 10) === activeDay.date ||
-          dayItems.some(
-            (item) => item.kind === 'ticket' && item.refId === ticket.id,
-          ),
-      )
-    : []
   const openChecklistItems = state.checklistItems
     .filter((item) => !item.done)
     .sort((left, right) => left.sortOrder - right.sortOrder)
     .slice(0, 5)
-  const phrase =
-    phraseLibrary[
-      Math.max(activeDayIndex, 0) % Math.max(phraseLibrary.length, 1)
-    ]
 
   function toggleChecklistItem(itemId: string, done: boolean) {
     commit((previous) => ({
@@ -460,38 +440,6 @@ function TodayView({
       />
 
       <TimeZoneStrip now={currentTime} />
-
-      <div className="today-hero">
-        <article className="today-focus-card">
-          <p className="eyebrow">Фокус</p>
-          <h3>{activeDay?.note || 'Открыть маршрут и выбрать первый шаг'}</h3>
-          <div className="today-pills">
-            <span>{dayItems.length} в плане</span>
-            <span>{dayTickets.length} переездов</span>
-            <span>{isOnline ? 'Синхронизация доступна' : 'Офлайн-режим'}</span>
-          </div>
-        </article>
-        <article className="today-side-card">
-          <Building2 size={20} />
-          <div>
-            <span>База</span>
-            <strong>{activeHotel?.name ?? 'Не привязана'}</strong>
-            <p>{activeHotel ? activeHotel.city : 'Добавь отель в разделе Ещё'}</p>
-          </div>
-        </article>
-        <article className="today-side-card">
-          {dayTickets[0] ? ticketIcon(dayTickets[0].kind) : <Ticket size={20} />}
-          <div>
-            <span>Переезд</span>
-            <strong>
-              {dayTickets[0]
-                ? `${dayTickets[0].fromCity} → ${dayTickets[0].toCity}`
-                : 'Нет переезда'}
-            </strong>
-            <p>{dayTickets[0] ? formatDateTime(dayTickets[0].departAt) : 'День без билетов'}</p>
-          </div>
-        </article>
-      </div>
 
       <div className="today-grid">
         <article className="hub-card">
@@ -541,38 +489,6 @@ function TodayView({
           </div>
         </article>
 
-        <article className="hub-card">
-          <div className="title-row">
-            <div>
-              <p className="eyebrow">Фраза дня</p>
-              <h3>{phrase.zh}</h3>
-            </div>
-            <button
-              className="icon-button quiet"
-              type="button"
-              title="Произнести"
-              onClick={() => speakChinese(phrase.zh)}
-            >
-              <Volume2 size={18} />
-            </button>
-          </div>
-          <p className="phrase-pinyin">{phrase.pinyin}</p>
-          <p>{phrase.ru}</p>
-        </article>
-
-        <article className="hub-card">
-          <div className="title-row">
-            <div>
-              <p className="eyebrow">PWA</p>
-              <h3>{isOnline ? 'Готовимся к офлайну' : 'Можно без сети'}</h3>
-            </div>
-            {isOnline ? <Wifi size={20} /> : <WifiOff size={20} />}
-          </div>
-          <p className="muted-text">
-            Добавь сайт на экран телефона и открой его перед поездкой: основные
-            файлы приложения будут доступны даже при плохой связи.
-          </p>
-        </article>
       </div>
     </section>
   )
@@ -647,6 +563,7 @@ function MoreView({
 
 function RouteView({ state, commit }: { state: TripState; commit: Commit }) {
   const [editingDayId, setEditingDayId] = useState<string | null>(null)
+  const [detailItem, setDetailItem] = useState<DayItem | null>(null)
   const sortedDays = [...state.days].sort((left, right) =>
     left.date.localeCompare(right.date),
   )
@@ -815,6 +732,11 @@ function RouteView({ state, commit }: { state: TripState; commit: Commit }) {
                         key={item.id}
                         item={item}
                         state={state}
+                        onOpenDetails={
+                          item.kind === 'place' || item.kind === 'hotel'
+                            ? () => setDetailItem(item)
+                            : undefined
+                        }
                         onRemove={() =>
                           commit((previous) => ({
                             ...previous,
@@ -853,6 +775,13 @@ function RouteView({ state, commit }: { state: TripState; commit: Commit }) {
           )
         })}
       </div>
+      {detailItem ? (
+        <RouteItemDetailModal
+          item={detailItem}
+          state={state}
+          onClose={() => setDetailItem(null)}
+        />
+      ) : null}
     </section>
   )
 }
@@ -3097,14 +3026,17 @@ function DayItemRow({
   state,
   onRemove,
   onSaveNote,
+  onOpenDetails,
 }: {
   item: DayItem
   state: TripState
   onRemove: () => void
   onSaveNote?: (note: string) => void
+  onOpenDetails?: () => void
 }) {
   const [isEditing, setIsEditing] = useState(false)
   const entity = getDayItemEntity(item, state)
+  const canOpenDetails = Boolean(onOpenDetails)
 
   function saveNote(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -3138,11 +3070,27 @@ function DayItemRow({
 
   return (
     <div className="day-item-row">
-      <div className="day-item-kind">{dayItemIcon(item.kind)}</div>
-      <div>
-        <strong>{entity.title}</strong>
-        {entity.subtitle ? <p>{entity.subtitle}</p> : null}
-      </div>
+      {canOpenDetails ? (
+        <button
+          className="day-item-open"
+          type="button"
+          onClick={onOpenDetails}
+        >
+          <div className="day-item-kind">{dayItemIcon(item.kind)}</div>
+          <div>
+            <strong>{entity.title}</strong>
+            {entity.subtitle ? <p>{entity.subtitle}</p> : null}
+          </div>
+        </button>
+      ) : (
+        <div className="day-item-open passive">
+          <div className="day-item-kind">{dayItemIcon(item.kind)}</div>
+          <div>
+            <strong>{entity.title}</strong>
+            {entity.subtitle ? <p>{entity.subtitle}</p> : null}
+          </div>
+        </div>
+      )}
       <div className="action-cluster compact">
         {item.kind === 'note' ? (
           <button
@@ -3165,6 +3113,93 @@ function DayItemRow({
       </div>
     </div>
   )
+}
+
+function RouteItemDetailModal({
+  item,
+  state,
+  onClose,
+}: {
+  item: DayItem
+  state: TripState
+  onClose: () => void
+}) {
+  if (item.kind === 'place') {
+    const place = state.places.find((candidate) => candidate.id === item.refId)
+    if (!place) return null
+    const sections = getPlaceSections(state)
+
+    return (
+      <div className="modal-backdrop" role="dialog" aria-modal="true">
+        <article className="detail-modal">
+          <button
+            className="modal-close"
+            type="button"
+            title="Закрыть"
+            onClick={onClose}
+          >
+            <X size={22} />
+          </button>
+          <PlaceGallery photos={parsePlacePhotos(place.photoUrl)} />
+          <div className="detail-modal-body">
+            <p className="tag icon-tag">
+              {placeIcon(place.category)}
+              <span>{placeCategoryLabel(place.category, sections)}</span>
+            </p>
+            <h3>{place.name}</h3>
+            <p className="muted-text">{place.city}</p>
+            {place.note ? <p>{place.note}</p> : null}
+            <div className="card-actions">
+              <span className={`chip-button ${place.status === 'want' ? 'active' : ''}`}>
+                {place.status === 'want' ? 'Хочу' : 'Были'}
+              </span>
+              <ExternalLinkButton href={place.url} label="Карта" />
+            </div>
+          </div>
+        </article>
+      </div>
+    )
+  }
+
+  if (item.kind === 'hotel') {
+    const hotel = state.hotels.find((candidate) => candidate.id === item.refId)
+    if (!hotel) return null
+
+    return (
+      <div className="modal-backdrop" role="dialog" aria-modal="true">
+        <article className="detail-modal">
+          <button
+            className="modal-close"
+            type="button"
+            title="Закрыть"
+            onClick={onClose}
+          >
+            <X size={22} />
+          </button>
+          <div className="detail-modal-body">
+            <p className="tag icon-tag">
+              <Building2 size={18} />
+              <span>Отель</span>
+            </p>
+            <h3>{hotel.name}</h3>
+            <p className="muted-text">{hotel.city}</p>
+            <div className="detail-facts">
+              <span>{formatShortDate(hotel.checkIn)} → {formatShortDate(hotel.checkOut)}</span>
+              <span>{formatRawMoney(hotel.price, hotel.currency)}</span>
+            </div>
+            {hotel.address ? <p>{hotel.address}</p> : null}
+            {hotel.note ? <p>{hotel.note}</p> : null}
+            <div className="card-actions">
+              <ExternalLinkButton href={hotel.url} label="Бронь" />
+              <ExternalLinkButton href={hotel.confirmationUrl} label="Файл" />
+            </div>
+          </div>
+        </article>
+      </div>
+    )
+  }
+
+  return null
 }
 
 function RouteMapPanel({ state }: { state: TripState }) {
@@ -3288,6 +3323,7 @@ function CreateDetails({
 }
 
 function PlaceGallery({ photos }: { photos: string[] }) {
+  const [activePhoto, setActivePhoto] = useState<string | null>(null)
   const visiblePhotos = photos.filter(Boolean)
 
   if (!visiblePhotos.length) {
@@ -3303,21 +3339,45 @@ function PlaceGallery({ photos }: { photos: string[] }) {
       <div className="place-gallery-track">
         {visiblePhotos.map((photo, index) => (
           <div className="place-gallery-slide" key={`${photo}-${index}`}>
-            <a
+            <button
               className="place-gallery-open"
-              href={photo}
-              target="_blank"
-              rel="noreferrer"
+              type="button"
               aria-label={`Открыть фото ${index + 1}`}
+              onClick={() => setActivePhoto(photo)}
             >
               <img src={photo} alt="" loading="lazy" />
-            </a>
+            </button>
           </div>
         ))}
       </div>
       {visiblePhotos.length > 1 ? (
         <span className="photo-counter">{visiblePhotos.length} фото</span>
       ) : null}
+      {activePhoto ? (
+        <PhotoLightbox photo={activePhoto} onClose={() => setActivePhoto(null)} />
+      ) : null}
+    </div>
+  )
+}
+
+function PhotoLightbox({
+  photo,
+  onClose,
+}: {
+  photo: string
+  onClose: () => void
+}) {
+  return (
+    <div className="media-lightbox" role="dialog" aria-modal="true">
+      <button
+        className="media-lightbox-close"
+        type="button"
+        title="Закрыть"
+        onClick={onClose}
+      >
+        <X size={24} />
+      </button>
+      <img src={photo} alt="" />
     </div>
   )
 }
@@ -3357,13 +3417,93 @@ function DocumentPreview({
   return (
     <div className="document-preview-stack">
       {preview}
-      <a
+      <button
         className="document-preview-hitbox"
-        href={value}
-        target="_blank"
-        rel="noreferrer"
+        type="button"
         aria-label={`Открыть ${documentOpenLabel(value).toLowerCase()}`}
+        onClick={() => openDocumentValue(value)}
       />
+    </div>
+  )
+}
+
+function CurrencyCalculator({ rate }: { rate: number }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [amount, setAmount] = useState('100')
+  const [direction, setDirection] = useState<'cny-rub' | 'rub-cny'>('cny-rub')
+  const numericAmount = Number(amount.replace(',', '.'))
+  const isValidAmount = Number.isFinite(numericAmount) && numericAmount >= 0
+  const result = isValidAmount
+    ? direction === 'cny-rub'
+      ? numericAmount * rate
+      : rate > 0
+        ? numericAmount / rate
+        : 0
+    : 0
+  const resultCurrency = direction === 'cny-rub' ? 'RUB' : 'CNY'
+  const sourceCurrency = direction === 'cny-rub' ? 'CNY' : 'RUB'
+
+  return (
+    <div className={`calculator-widget ${isOpen ? 'open' : ''}`}>
+      {isOpen ? (
+        <div className="calculator-panel" role="dialog" aria-label="Конвертер валют">
+          <div className="title-row">
+            <div>
+              <p className="eyebrow">Конвертер</p>
+              <h3>Юани / рубли</h3>
+            </div>
+            <button
+              className="icon-button tiny quiet"
+              type="button"
+              title="Закрыть"
+              onClick={() => setIsOpen(false)}
+            >
+              <X size={16} />
+            </button>
+          </div>
+          <div className="segmented-row">
+            <button
+              className={direction === 'cny-rub' ? 'active' : ''}
+              type="button"
+              onClick={() => setDirection('cny-rub')}
+            >
+              CNY → RUB
+            </button>
+            <button
+              className={direction === 'rub-cny' ? 'active' : ''}
+              type="button"
+              onClick={() => setDirection('rub-cny')}
+            >
+              RUB → CNY
+            </button>
+          </div>
+          <label>
+            <span>Сумма, {sourceCurrency}</span>
+            <input
+              inputMode="decimal"
+              value={amount}
+              onChange={(event) => setAmount(event.target.value)}
+            />
+          </label>
+          <div className="calculator-result">
+            <span>Итого</span>
+            <strong>
+              {isValidAmount
+                ? formatRawMoney(result, resultCurrency as Currency)
+                : '—'}
+            </strong>
+          </div>
+          <p className="muted-text">Курс: 1 CNY = {rate.toFixed(2)} RUB</p>
+        </div>
+      ) : null}
+      <button
+        className="calculator-fab"
+        type="button"
+        title="Калькулятор валют"
+        onClick={() => setIsOpen((value) => !value)}
+      >
+        <Calculator size={24} />
+      </button>
     </div>
   )
 }
@@ -3619,6 +3759,58 @@ function documentOpenLabel(value: string) {
   if (isPdfDocument(value)) return 'PDF'
   if (isEmbeddedFile(value)) return 'Файл'
   return 'Открыть'
+}
+
+function openDocumentValue(value: string) {
+  if (!value) return
+
+  const targetWindow = window.open('', '_blank')
+  if (!targetWindow) {
+    window.location.href = value
+    return
+  }
+
+  targetWindow.opener = null
+  targetWindow.document.title = documentOpenLabel(value)
+
+  if (!isEmbeddedFile(value)) {
+    targetWindow.location.href = value
+    return
+  }
+
+  targetWindow.document.body.style.margin = '0'
+  targetWindow.document.body.style.background = '#0f172a'
+  targetWindow.document.body.textContent = 'Открываем файл...'
+
+  if (isEmbeddedImage(value)) {
+    targetWindow.document.body.textContent = ''
+    const image = targetWindow.document.createElement('img')
+    image.src = value
+    image.alt = ''
+    image.style.width = '100%'
+    image.style.height = '100vh'
+    image.style.objectFit = 'contain'
+    targetWindow.document.body.append(image)
+    return
+  }
+
+  void fetch(value)
+    .then((response) => response.blob())
+    .then((blob) => {
+      const objectUrl = URL.createObjectURL(blob)
+      targetWindow.document.body.textContent = ''
+      const frame = targetWindow.document.createElement('iframe')
+      frame.src = objectUrl
+      frame.title = documentOpenLabel(value)
+      frame.style.width = '100%'
+      frame.style.height = '100vh'
+      frame.style.border = '0'
+      targetWindow.document.body.append(frame)
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 300_000)
+    })
+    .catch(() => {
+      targetWindow.location.href = value
+    })
 }
 
 function editableDocumentValue(value: string) {
