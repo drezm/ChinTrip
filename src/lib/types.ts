@@ -1,6 +1,6 @@
 export type TravelerId = 'traveler-a' | 'traveler-b' | 'traveler-c'
 export type Currency = 'CNY' | 'RUB'
-export type PlaceCategory = 'sight' | 'food' | 'shopping'
+export type PlaceCategory = string
 export type PlaceStatus = 'want' | 'done'
 export type TicketKind = 'flight' | 'train' | 'metro-pass'
 export type DayItemKind = 'place' | 'hotel' | 'ticket' | 'note'
@@ -24,6 +24,12 @@ export interface Place {
   status: PlaceStatus
   dayId?: string
   createdAt: string
+}
+
+export interface PlaceSection {
+  id: string
+  title: string
+  sortOrder: number
 }
 
 export interface Hotel {
@@ -110,6 +116,7 @@ export interface Settings {
 
 export interface TripState {
   travelers: Traveler[]
+  placeSections: PlaceSection[]
   places: Place[]
   hotels: Hotel[]
   tickets: Ticket[]

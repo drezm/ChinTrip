@@ -4,6 +4,7 @@ import {
   CalendarPlus,
   Check,
   CircleDollarSign,
+  Clock,
   ExternalLink,
   ImageIcon,
   KeyRound,
@@ -388,6 +389,7 @@ function TodayView({
     left.date.localeCompare(right.date),
   )
   const today = todayDate()
+  const currentTime = useMinuteClock()
   const dayIndex = sortedDays.findIndex((day) => day.date >= today)
   const activeDay =
     sortedDays.find((day) => day.date === today) ??
@@ -439,6 +441,8 @@ function TodayView({
         title={activeDay ? activeDay.city : 'План'}
         aside={activeDay ? formatWeekday(activeDay.date) : undefined}
       />
+
+      <TimeZoneStrip now={currentTime} />
 
       <div className="today-hero">
         <article className="today-focus-card">
@@ -838,8 +842,19 @@ function RouteView({ state, commit }: { state: TripState; commit: Commit }) {
 
 function PlacesView({ state, commit }: { state: TripState; commit: Commit }) {
   const [editingPlaceId, setEditingPlaceId] = useState<string | null>(null)
+  const [activeSectionId, setActiveSectionId] = useLocalStorageState(
+    'china-trip.place-section',
+    'all',
+    isPlaceSectionFilter,
+  )
+  const [editingSectionId, setEditingSectionId] = useState<string | null>(null)
+  const placeSections = getPlaceSections(state)
+  const visiblePlaces =
+    activeSectionId === 'all'
+      ? state.places
+      : state.places.filter((place) => place.category === activeSectionId)
 
-  function addPlace(event: FormEvent<HTMLFormElement>) {
+  async function addPlace(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const form = event.currentTarget
     const data = new FormData(form)
@@ -848,6 +863,8 @@ function PlacesView({ state, commit }: { state: TripState; commit: Commit }) {
     if (!name || !city) return
     const dayId = getFormString(data, 'dayId') || undefined
     const id = makeId('place')
+    const category = getFormString(data, 'category') || placeSections[0]?.id || 'sight'
+    const photoUrl = await getPhotoValue(data, getFormString(data, 'photoUrl'))
 
     commit((previous) => ({
       ...previous,
@@ -856,10 +873,10 @@ function PlacesView({ state, commit }: { state: TripState; commit: Commit }) {
           id,
           name,
           city,
-          category: getFormString(data, 'category') as PlaceCategory,
+          category,
           url: getFormString(data, 'url'),
           note: getFormString(data, 'note'),
-          photoUrl: getFormString(data, 'photoUrl'),
+          photoUrl,
           status: 'want',
           dayId,
           createdAt: new Date().toISOString(),
@@ -882,13 +899,14 @@ function PlacesView({ state, commit }: { state: TripState; commit: Commit }) {
     form.reset()
   }
 
-  function updatePlace(event: FormEvent<HTMLFormElement>, placeId: string) {
+  async function updatePlace(event: FormEvent<HTMLFormElement>, placeId: string) {
     event.preventDefault()
     const data = new FormData(event.currentTarget)
     const name = getFormString(data, 'name')
     const city = getFormString(data, 'city')
     if (!name || !city) return
     const dayId = getFormString(data, 'dayId')
+    const photoUrl = await getPhotoValue(data, getFormString(data, 'photoUrl'))
 
     commit((previous) => ({
       ...previous,
@@ -898,10 +916,10 @@ function PlacesView({ state, commit }: { state: TripState; commit: Commit }) {
               ...place,
               name,
               city,
-              category: getFormString(data, 'category') as PlaceCategory,
+              category: getFormString(data, 'category') || place.category,
               url: getFormString(data, 'url'),
               note: getFormString(data, 'note'),
-              photoUrl: getFormString(data, 'photoUrl'),
+              photoUrl,
               status: getFormString(data, 'status') as PlaceStatus,
               dayId: dayId || undefined,
             }
@@ -910,6 +928,65 @@ function PlacesView({ state, commit }: { state: TripState; commit: Commit }) {
       dayItems: syncDayItemLink(previous.dayItems, 'place', placeId, dayId),
     }))
     setEditingPlaceId(null)
+  }
+
+  function addPlaceSection(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = event.currentTarget
+    const title = getFormString(new FormData(form), 'title')
+    if (!title) return
+
+    commit((previous) => {
+      const existingSections = getPlaceSections(previous)
+      const id = makePlaceSectionId(title, existingSections)
+
+      return {
+        ...previous,
+        placeSections: [
+          ...previous.placeSections,
+          {
+            id,
+            title,
+            sortOrder: nextPlaceSectionOrder(existingSections),
+          },
+        ],
+      }
+    })
+    setActiveSectionId(makePlaceSectionId(title, placeSections))
+    form.reset()
+  }
+
+  function updatePlaceSection(event: FormEvent<HTMLFormElement>, sectionId: string) {
+    event.preventDefault()
+    const title = getFormString(new FormData(event.currentTarget), 'title')
+    if (!title) return
+
+    commit((previous) => ({
+      ...previous,
+      placeSections: getPlaceSections(previous).map((section) =>
+        section.id === sectionId ? { ...section, title } : section,
+      ),
+    }))
+    setEditingSectionId(null)
+  }
+
+  function removePlaceSection(sectionId: string) {
+    const fallbackSection =
+      placeSections.find((section) => section.id !== sectionId) ?? placeSections[0]
+    if (!fallbackSection || fallbackSection.id === sectionId) return
+
+    commit((previous) => ({
+      ...previous,
+      placeSections: previous.placeSections.filter(
+        (section) => section.id !== sectionId,
+      ),
+      places: previous.places.map((place) =>
+        place.category === sectionId
+          ? { ...place, category: fallbackSection.id }
+          : place,
+      ),
+    }))
+    if (activeSectionId === sectionId) setActiveSectionId(fallbackSection.id)
   }
 
   function setPlaceStatus(placeId: string, status: PlaceStatus) {
@@ -926,8 +1003,100 @@ function PlacesView({ state, commit }: { state: TripState; commit: Commit }) {
       <SectionHeading
         eyebrow="POI"
         title="Места"
-        aside={`${state.places.length} ${pluralRu(state.places.length, ['точка', 'точки', 'точек'])}`}
+        aside={`${visiblePlaces.length}/${state.places.length} ${pluralRu(state.places.length, ['точка', 'точки', 'точек'])}`}
       />
+      <article className="place-sections-panel">
+        <div className="title-row">
+          <div>
+            <p className="eyebrow">Разделы</p>
+            <h3>Быстрые подборки</h3>
+          </div>
+          <MapPin size={20} />
+        </div>
+        <div className="place-section-list">
+          <button
+            className={`place-section-chip ${activeSectionId === 'all' ? 'active' : ''}`}
+            type="button"
+            onClick={() => setActiveSectionId('all')}
+          >
+            <strong>Все</strong>
+            <span>{state.places.length}</span>
+          </button>
+          {placeSections.map((section) => {
+            const count = state.places.filter(
+              (place) => place.category === section.id,
+            ).length
+            const isActive = activeSectionId === section.id
+
+            return (
+              <div
+                className={`place-section-chip managed ${isActive ? 'active' : ''}`}
+                key={section.id}
+              >
+                {editingSectionId === section.id ? (
+                  <form
+                    className="section-edit-form"
+                    onSubmit={(event) => updatePlaceSection(event, section.id)}
+                  >
+                    <input name="title" defaultValue={section.title} autoFocus />
+                    <button type="submit" title="Сохранить">
+                      <Save size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      title="Отмена"
+                      onClick={() => setEditingSectionId(null)}
+                    >
+                      <X size={14} />
+                    </button>
+                  </form>
+                ) : (
+                  <>
+                    <button
+                      className="section-select-button"
+                      type="button"
+                      onClick={() => setActiveSectionId(section.id)}
+                    >
+                      {placeIcon(section.id)}
+                      <strong>{section.title}</strong>
+                      <span>{count}</span>
+                    </button>
+                    <button
+                      className="section-action-button"
+                      type="button"
+                      title="Переименовать раздел"
+                      onClick={() => setEditingSectionId(section.id)}
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <button
+                      className="section-action-button"
+                      type="button"
+                      title="Удалить раздел"
+                      disabled={placeSections.length <= 1}
+                      onClick={() => removePlaceSection(section.id)}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </>
+                )}
+              </div>
+            )
+          })}
+        </div>
+        <CreateDetails title="Создать раздел" icon={<Plus size={18} />}>
+          <form className="quick-form compact-form" onSubmit={addPlaceSection}>
+            <label>
+              <span>Название</span>
+              <input name="title" placeholder="Кофейни, дети, природа" required />
+            </label>
+            <button className="icon-button primary" type="submit" title="Добавить">
+              <Plus size={20} />
+            </button>
+          </form>
+        </CreateDetails>
+      </article>
+
       <CreateDetails title="Добавить место" icon={<Plus size={18} />}>
         <form className="quick-form" onSubmit={addPlace}>
           <label>
@@ -940,11 +1109,7 @@ function PlacesView({ state, commit }: { state: TripState; commit: Commit }) {
           </label>
           <label>
             <span>Категория</span>
-            <select name="category" defaultValue="sight">
-              <option value="sight">Достопримечательность</option>
-              <option value="food">Еда</option>
-              <option value="shopping">Шопинг</option>
-            </select>
+            <PlaceSectionSelect sections={placeSections} />
           </label>
           <label>
             <span>День</span>
@@ -954,8 +1119,12 @@ function PlacesView({ state, commit }: { state: TripState; commit: Commit }) {
             <span>Карта</span>
             <input name="url" placeholder="https://maps..." />
           </label>
-          <label>
-            <span>Фото</span>
+          <label className="wide-field">
+            <span>Фото из галереи</span>
+            <input name="photoFile" type="file" accept="image/*" />
+          </label>
+          <label className="wide-field">
+            <span>Фото по ссылке</span>
             <input name="photoUrl" placeholder="https://..." />
           </label>
           <label className="wide-field">
@@ -969,7 +1138,7 @@ function PlacesView({ state, commit }: { state: TripState; commit: Commit }) {
       </CreateDetails>
 
       <div className="card-grid">
-        {state.places.map((place) => (
+        {visiblePlaces.map((place) => (
           <article className="place-card" key={place.id}>
             <PlaceImage src={place.photoUrl} />
             <div className="card-body">
@@ -977,7 +1146,7 @@ function PlacesView({ state, commit }: { state: TripState; commit: Commit }) {
                 <div>
                   <p className="tag icon-tag">
                     {placeIcon(place.category)}
-                    <span>{placeCategoryLabel(place.category)}</span>
+                    <span>{placeCategoryLabel(place.category, placeSections)}</span>
                   </p>
                   <h3>{place.name}</h3>
                   <p className="muted-text">{place.city}</p>
@@ -1014,11 +1183,10 @@ function PlacesView({ state, commit }: { state: TripState; commit: Commit }) {
                   </label>
                   <label>
                     <span>Категория</span>
-                    <select name="category" defaultValue={place.category}>
-                      <option value="sight">Достопримечательность</option>
-                      <option value="food">Еда</option>
-                      <option value="shopping">Шопинг</option>
-                    </select>
+                    <PlaceSectionSelect
+                      sections={placeSections}
+                      defaultValue={place.category}
+                    />
                   </label>
                   <label>
                     <span>Статус</span>
@@ -1036,7 +1204,11 @@ function PlacesView({ state, commit }: { state: TripState; commit: Commit }) {
                     <input name="url" defaultValue={place.url} />
                   </label>
                   <label className="wide-field">
-                    <span>Фото</span>
+                    <span>Фото из галереи</span>
+                    <input name="photoFile" type="file" accept="image/*" />
+                  </label>
+                  <label className="wide-field">
+                    <span>Фото по ссылке</span>
                     <input name="photoUrl" defaultValue={place.photoUrl} />
                   </label>
                   <label className="wide-field">
@@ -2896,6 +3068,34 @@ function RouteMapPanel({ state }: { state: TripState }) {
   )
 }
 
+function TimeZoneStrip({ now }: { now: Date }) {
+  return (
+    <section className="time-zone-strip" aria-label="Дата и время">
+      <article className="time-card">
+        <CalendarDays size={18} />
+        <div>
+          <span>Сегодня</span>
+          <strong>{formatZonedDate(now, 'Europe/Moscow')}</strong>
+        </div>
+      </article>
+      <article className="time-card">
+        <Clock size={18} />
+        <div>
+          <span>Москва</span>
+          <strong>{formatZonedTime(now, 'Europe/Moscow')}</strong>
+        </div>
+      </article>
+      <article className="time-card">
+        <Clock size={18} />
+        <div>
+          <span>Гуанчжоу</span>
+          <strong>{formatZonedTime(now, 'Asia/Shanghai')}</strong>
+        </div>
+      </article>
+    </section>
+  )
+}
+
 function CompactDayItem({ item, state }: { item: DayItem; state: TripState }) {
   const entity = getDayItemEntity(item, state)
 
@@ -2907,6 +3107,24 @@ function CompactDayItem({ item, state }: { item: DayItem; state: TripState }) {
         {entity.subtitle ? <p>{entity.subtitle}</p> : null}
       </div>
     </div>
+  )
+}
+
+function PlaceSectionSelect({
+  sections,
+  defaultValue,
+}: {
+  sections: TripState['placeSections']
+  defaultValue?: string
+}) {
+  return (
+    <select name="category" defaultValue={defaultValue ?? sections[0]?.id ?? 'sight'}>
+      {sections.map((section) => (
+        <option key={section.id} value={section.id}>
+          {section.title}
+        </option>
+      ))}
+    </select>
   )
 }
 
@@ -3100,12 +3318,25 @@ function useOnlineStatus() {
   return isOnline
 }
 
+function useMinuteClock() {
+  const [now, setNow] = useState(() => new Date())
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setNow(new Date()), 30_000)
+    return () => window.clearInterval(intervalId)
+  }, [])
+
+  return now
+}
+
 function getDayItemEntity(item: DayItem, state: TripState) {
   if (item.kind === 'place') {
     const place = state.places.find((candidate) => candidate.id === item.refId)
     return {
       title: place?.name ?? 'Место',
-      subtitle: place ? `${place.city} · ${placeCategoryLabel(place.category)}` : '',
+      subtitle: place
+        ? `${place.city} · ${placeCategoryLabel(place.category, state.placeSections)}`
+        : '',
     }
   }
 
@@ -3193,6 +3424,45 @@ function getFormNumber(data: FormData, name: string) {
   return Number.isFinite(value) ? value : 0
 }
 
+async function getPhotoValue(data: FormData, fallback: string) {
+  const file = data.get('photoFile')
+  if (file instanceof File && file.size > 0) {
+    return resizeImageFile(file)
+  }
+
+  return fallback
+}
+
+function resizeImageFile(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onerror = () => reject(new Error('Не удалось прочитать фото'))
+    reader.onload = () => {
+      const image = new Image()
+      image.onerror = () => reject(new Error('Не удалось подготовить фото'))
+      image.onload = () => {
+        const maxSize = 1400
+        const scale = Math.min(1, maxSize / Math.max(image.width, image.height))
+        const width = Math.max(1, Math.round(image.width * scale))
+        const height = Math.max(1, Math.round(image.height * scale))
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const context = canvas.getContext('2d')
+        if (!context) {
+          reject(new Error('Не удалось сжать фото'))
+          return
+        }
+
+        context.drawImage(image, 0, 0, width, height)
+        resolve(canvas.toDataURL('image/jpeg', 0.82))
+      }
+      image.src = String(reader.result)
+    }
+    reader.readAsDataURL(file)
+  })
+}
+
 function makeId(prefix: string) {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 }
@@ -3209,6 +3479,53 @@ function nextChecklistOrder(items: TripState['checklistItems'], checklistId: str
   return checklistItems.length
     ? Math.max(...checklistItems.map((item) => item.sortOrder)) + 10
     : 10
+}
+
+function getPlaceSections(state: TripState) {
+  const sections = [...state.placeSections]
+  const knownIds = new Set(sections.map((section) => section.id))
+  let nextOrder = nextPlaceSectionOrder(sections)
+
+  for (const place of state.places) {
+    if (!place.category || knownIds.has(place.category)) continue
+    sections.push({
+      id: place.category,
+      title: place.category,
+      sortOrder: nextOrder,
+    })
+    knownIds.add(place.category)
+    nextOrder += 10
+  }
+
+  return sections.sort((left, right) => left.sortOrder - right.sortOrder)
+}
+
+function nextPlaceSectionOrder(sections: TripState['placeSections']) {
+  return sections.length
+    ? Math.max(...sections.map((section) => section.sortOrder)) + 10
+    : 10
+}
+
+function makePlaceSectionId(
+  title: string,
+  sections: TripState['placeSections'],
+) {
+  const base =
+    title
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-zа-яё0-9]+/gi, '-')
+      .replace(/^-|-$/g, '') || 'section'
+  const knownIds = new Set(sections.map((section) => section.id))
+  let id = base
+  let index = 2
+
+  while (knownIds.has(id)) {
+    id = `${base}-${index}`
+    index += 1
+  }
+
+  return id
 }
 
 function getLinkedDayId(
@@ -3255,6 +3572,10 @@ function isTabId(value: string): value is TabId {
 
 function isMoreSectionId(value: string): value is MoreSectionId {
   return moreSections.some((section) => section.id === value)
+}
+
+function isPlaceSectionFilter(value: string): value is string {
+  return Boolean(value)
 }
 
 function isTravelerId(value: string): value is TravelerId {
@@ -3315,13 +3636,36 @@ function formatWeekday(value: string) {
   }).format(new Date(`${value}T12:00:00`))
 }
 
-function placeCategoryLabel(category: PlaceCategory) {
-  const labels: Record<PlaceCategory, string> = {
+function formatZonedDate(value: Date, timeZone: string) {
+  return new Intl.DateTimeFormat('ru-RU', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    timeZone,
+  }).format(value)
+}
+
+function formatZonedTime(value: Date, timeZone: string) {
+  return new Intl.DateTimeFormat('ru-RU', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone,
+  }).format(value)
+}
+
+function placeCategoryLabel(
+  category: PlaceCategory,
+  sections: TripState['placeSections'] = [],
+) {
+  const section = sections.find((candidate) => candidate.id === category)
+  if (section) return section.title
+
+  const labels: Record<string, string> = {
     sight: 'Достопримечательность',
     food: 'Еда',
     shopping: 'Шопинг',
   }
-  return labels[category]
+  return labels[category] ?? category
 }
 
 function ticketKindLabel(kind: TicketKind) {
@@ -3360,12 +3704,12 @@ function dayItemIcon(kind: DayItemKind) {
 }
 
 function placeIcon(category: PlaceCategory) {
-  const iconMap: Record<PlaceCategory, ReactNode> = {
+  const iconMap: Record<string, ReactNode> = {
     sight: <Landmark size={18} />,
     food: <Utensils size={18} />,
     shopping: <ShoppingBag size={18} />,
   }
-  return iconMap[category]
+  return iconMap[category] ?? <MapPin size={18} />
 }
 
 function pluralRu(count: number, forms: [string, string, string]) {

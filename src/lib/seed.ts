@@ -9,6 +9,11 @@ export function createSeedTripState(): TripState {
       { id: 'traveler-b', name: 'Артур', color: '#0891b2', sortOrder: 2 },
       { id: 'traveler-c', name: 'Лера', color: '#ca8a04', sortOrder: 3 },
     ],
+    placeSections: [
+      { id: 'sight', title: 'Достопримечательности', sortOrder: 10 },
+      { id: 'food', title: 'Еда', sortOrder: 20 },
+      { id: 'shopping', title: 'Шопинг', sortOrder: 30 },
+    ],
     days: [
       {
         id: 'day-aug-08-road',

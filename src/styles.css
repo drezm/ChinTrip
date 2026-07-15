@@ -258,6 +258,7 @@ a {
 .create-panel,
 .route-map-panel,
 .hub-card,
+.place-sections-panel,
 .today-side-card,
 .document-card,
 .phrase-card,
@@ -279,6 +280,10 @@ a {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   padding: 12px;
+}
+
+.quick-form.compact-form {
+  grid-template-columns: 1fr 42px;
 }
 
 .create-panel {
@@ -607,9 +612,53 @@ select:focus {
   gap: 12px;
 }
 
+.time-zone-strip {
+  display: grid;
+  grid-template-columns: 1.35fr repeat(2, minmax(0, 0.85fr));
+  gap: 10px;
+}
+
+.time-card {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 9px;
+  align-items: center;
+  min-height: 66px;
+  border: 1px solid rgba(23, 32, 51, 0.09);
+  border-radius: 8px;
+  padding: 10px;
+  background: #ffffff;
+  box-shadow: 0 7px 18px rgba(23, 32, 51, 0.045);
+}
+
+.time-card > svg {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  padding: 8px;
+  color: #0e9384;
+  background: #d9f3ee;
+}
+
+.time-card span {
+  display: block;
+  color: #667085;
+  font-size: 12px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.time-card strong {
+  display: block;
+  margin-top: 3px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
 .today-focus-card,
 .today-side-card,
 .hub-card,
+.place-sections-panel,
 .route-map-panel,
 .document-card,
 .phrase-card {
@@ -874,6 +923,95 @@ select:focus {
   font-weight: 850;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.place-sections-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.place-section-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.place-section-chip {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 8px;
+  border-radius: 8px;
+  padding: 5px 8px;
+  color: #344054;
+  background: #f8fafc;
+}
+
+button.place-section-chip {
+  cursor: pointer;
+}
+
+.place-section-chip.active {
+  color: #ffffff;
+  background: #0e9384;
+}
+
+.place-section-chip span {
+  display: inline-grid;
+  min-width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 999px;
+  color: #667085;
+  background: #ffffff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.place-section-chip.active span {
+  color: #0e9384;
+}
+
+.place-section-chip.managed {
+  padding-right: 5px;
+}
+
+.section-select-button {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 7px;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.section-action-button,
+.section-edit-form button {
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 8px;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.65);
+  cursor: pointer;
+}
+
+.section-action-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.section-edit-form {
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) 30px 30px;
+  gap: 6px;
+  align-items: center;
+}
+
+.section-edit-form input {
+  min-height: 34px;
 }
 
 .chip-button,
@@ -1179,6 +1317,7 @@ select:focus {
   }
 
   .today-hero,
+  .time-zone-strip,
   .today-grid,
   .document-grid {
     grid-template-columns: 1fr;
@@ -1198,6 +1337,21 @@ select:focus {
 
   .more-switcher {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .place-section-list {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .place-section-chip,
+  button.place-section-chip,
+  .section-select-button {
+    width: 100%;
+  }
+
+  .section-select-button {
+    justify-content: flex-start;
   }
 
   .overview-grid {

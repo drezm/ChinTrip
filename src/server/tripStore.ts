@@ -40,6 +40,10 @@ function normalizeTripState(state: Partial<TripState>): TripState {
 
   return {
     travelers: state.travelers ?? seed.travelers,
+    placeSections: mergePlaceSections(
+      state.placeSections ?? seed.placeSections,
+      (state.places ?? seed.places).map((place) => place.category),
+    ),
     places: state.places ?? seed.places,
     hotels: state.hotels ?? seed.hotels,
     tickets: state.tickets ?? seed.tickets,
@@ -54,4 +58,28 @@ function normalizeTripState(state: Partial<TripState>): TripState {
       ...(state.settings ?? {}),
     },
   }
+}
+
+function mergePlaceSections(
+  sections: TripState['placeSections'],
+  categories: string[],
+) {
+  const result = [...sections]
+  const knownIds = new Set(result.map((section) => section.id))
+  let nextOrder = result.length
+    ? Math.max(...result.map((section) => section.sortOrder)) + 10
+    : 10
+
+  for (const category of categories) {
+    if (!category || knownIds.has(category)) continue
+    result.push({
+      id: category,
+      title: category,
+      sortOrder: nextOrder,
+    })
+    knownIds.add(category)
+    nextOrder += 10
+  }
+
+  return result.sort((left, right) => left.sortOrder - right.sortOrder)
 }

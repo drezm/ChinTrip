@@ -13,6 +13,7 @@ begin
       checklist_items,
       day_items,
       places,
+      place_sections,
       hotels,
       tickets,
       expenses,
@@ -47,11 +48,17 @@ create table if not exists days (
   note text not null default ''
 );
 
+create table if not exists place_sections (
+  id text primary key,
+  title text not null,
+  sort_order integer not null default 0
+);
+
 create table if not exists places (
   id text primary key,
   name text not null,
   city text not null,
-  category text not null default 'sight' check (category in ('sight', 'food', 'shopping')),
+  category text not null default 'sight',
   url text not null default '',
   note text not null default '',
   photo_url text not null default '',
@@ -59,6 +66,8 @@ create table if not exists places (
   day_id text references days(id) on delete set null,
   created_at text not null default ''
 );
+
+alter table if exists places drop constraint if exists places_category_check;
 
 create table if not exists hotels (
   id text primary key,
@@ -145,6 +154,12 @@ on conflict (id) do nothing;
 
 insert into settings (id, cny_to_rub_rate, rate_updated_at, display_currency)
 values (1, 11.4, now()::text, 'CNY')
+on conflict (id) do nothing;
+
+insert into place_sections (id, title, sort_order) values
+  ('sight', 'Достопримечательности', 10),
+  ('food', 'Еда', 20),
+  ('shopping', 'Шопинг', 30)
 on conflict (id) do nothing;
 
 -- Supabase storage bucket equivalent, if you later wire file uploads:

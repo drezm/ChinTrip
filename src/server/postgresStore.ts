@@ -6,6 +6,7 @@ import type {
   Currency,
   DayItemKind,
   PlaceCategory,
+  PlaceSection,
   PlaceStatus,
   TicketKind,
   TravelerId,
@@ -30,6 +31,7 @@ export async function readTripStateFromPostgres(): Promise<TripState> {
       hotels,
       tickets,
       days,
+      placeSections,
       dayItems,
       expenses,
       expenseShares,
@@ -42,6 +44,7 @@ export async function readTripStateFromPostgres(): Promise<TripState> {
       client.query('select * from hotels order by check_in asc, name asc'),
       client.query('select * from tickets order by depart_at asc, from_city asc'),
       client.query('select * from days order by date asc'),
+      client.query('select * from place_sections order by sort_order asc, title asc'),
       client.query('select * from day_items order by day_id asc, sort_order asc'),
       client.query('select * from expenses order by spent_at desc, created_at desc'),
       client.query('select * from expense_shares order by expense_id asc'),
@@ -80,6 +83,14 @@ export async function readTripStateFromPostgres(): Promise<TripState> {
         dayId: row.day_id || undefined,
         createdAt: row.created_at,
       })),
+      placeSections: mergePlaceSections(
+        placeSections.rows.map((row) => ({
+          id: row.id,
+          title: row.title,
+          sortOrder: Number(row.sort_order),
+        })),
+        places.rows.map((row) => row.category as string),
+      ),
       hotels: hotels.rows.map((row) => ({
         id: row.id,
         name: row.name,
@@ -176,6 +187,7 @@ export async function writeTripStateToPostgres(state: TripState) {
     await client.query('delete from expenses')
     await client.query('delete from day_items')
     await client.query('delete from places')
+    await client.query('delete from place_sections')
     await client.query('delete from hotels')
     await client.query('delete from tickets')
     await client.query('delete from days')
@@ -192,6 +204,16 @@ export async function writeTripStateToPostgres(state: TripState) {
       await client.query(
         'insert into days (id, date, city, note) values ($1, $2, $3, $4)',
         [day.id, day.date, day.city, day.note],
+      )
+    }
+
+    for (const section of mergePlaceSections(
+      state.placeSections,
+      state.places.map((place) => place.category),
+    )) {
+      await client.query(
+        'insert into place_sections (id, title, sort_order) values ($1, $2, $3)',
+        [section.id, section.title, section.sortOrder],
       )
     }
 
@@ -355,4 +377,25 @@ function getPool() {
   })
 
   return pool
+}
+
+function mergePlaceSections(sections: PlaceSection[], categories: string[]) {
+  const result = [...sections]
+  const knownIds = new Set(result.map((section) => section.id))
+  let nextOrder = result.length
+    ? Math.max(...result.map((section) => section.sortOrder)) + 10
+    : 10
+
+  for (const category of categories) {
+    if (!category || knownIds.has(category)) continue
+    result.push({
+      id: category,
+      title: category,
+      sortOrder: nextOrder,
+    })
+    knownIds.add(category)
+    nextOrder += 10
+  }
+
+  return result.sort((left, right) => left.sortOrder - right.sortOrder)
 }
