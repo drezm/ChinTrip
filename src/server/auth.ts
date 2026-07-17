@@ -22,6 +22,11 @@ function sessionPassword() {
 }
 
 function sessionConfig() {
+  const secureCookie =
+    process.env.SESSION_COOKIE_SECURE === 'false'
+      ? false
+      : process.env.NODE_ENV === 'production'
+
   return {
     name: COOKIE_NAME,
     password: sessionPassword(),
@@ -29,7 +34,7 @@ function sessionConfig() {
     cookie: {
       httpOnly: true,
       sameSite: 'lax' as const,
-      secure: process.env.NODE_ENV === 'production',
+      secure: secureCookie,
       path: '/',
     },
   }
