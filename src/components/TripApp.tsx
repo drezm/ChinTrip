@@ -279,23 +279,18 @@ export function TripApp({ initialState }: TripAppProps) {
     <div className="app-shell">
       <header className="trip-header">
         <div className="trip-title-block">
+          <h1>China Trip</h1>
           <div className="trip-badge-row">
             <span>8-20 августа</span>
             <span>до 25 авг.</span>
+            <span>Матвей · Артур · Лера</span>
           </div>
-          <h1>China Trip</h1>
-          <p className="trip-meta">
-            Матвей · Артур · Лера · {state.days.length}{' '}
-            {pluralRu(state.days.length, ['день', 'дня', 'дней'])}
-          </p>
         </div>
         <div className="trip-route-strip" aria-label="Маршрут поездки">
+          <MapPin size={14} />
           <span>Гуанчжоу</span>
           <span>Яншо</span>
           <span>Шанхай?</span>
-        </div>
-        <div className="china-seal" aria-hidden="true">
-          中
         </div>
       </header>
 
