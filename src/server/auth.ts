@@ -22,10 +22,13 @@ function sessionPassword() {
 }
 
 function sessionConfig() {
+  const secureCookieEnv = process.env.SESSION_COOKIE_SECURE
   const secureCookie =
-    process.env.SESSION_COOKIE_SECURE === 'false'
-      ? false
-      : process.env.NODE_ENV === 'production'
+    secureCookieEnv === 'true'
+      ? true
+      : secureCookieEnv === 'false'
+        ? false
+        : process.env.NODE_ENV === 'production'
 
   return {
     name: COOKIE_NAME,
