@@ -278,22 +278,25 @@ export function TripApp({ initialState }: TripAppProps) {
   return (
     <div className="app-shell">
       <header className="trip-header">
-        <div>
-          <p className="eyebrow">China Trip</p>
-          <h1>План поездки</h1>
+        <div className="trip-title-block">
+          <div className="trip-badge-row">
+            <span>8-20 августа</span>
+            <span>до 25 авг.</span>
+          </div>
+          <h1>China Trip</h1>
           <p className="trip-meta">
-            {state.days.length} {pluralRu(state.days.length, ['день', 'дня', 'дней'])} ·{' '}
-            {state.places.length}{' '}
-            {pluralRu(state.places.length, ['место', 'места', 'мест'])} ·{' '}
-            {state.expenses.length}{' '}
-            {pluralRu(state.expenses.length, ['трата', 'траты', 'трат'])}
+            Матвей · Артур · Лера · {state.days.length}{' '}
+            {pluralRu(state.days.length, ['день', 'дня', 'дней'])}
           </p>
         </div>
-        <div
-          className="trip-photo"
-          role="img"
-          aria-label="Великая Китайская стена"
-        />
+        <div className="trip-route-strip" aria-label="Маршрут поездки">
+          <span>Гуанчжоу</span>
+          <span>Яншо</span>
+          <span>Шанхай?</span>
+        </div>
+        <div className="china-seal" aria-hidden="true">
+          中
+        </div>
       </header>
 
       <section className="status-strip" aria-label="Текущий пользователь">
