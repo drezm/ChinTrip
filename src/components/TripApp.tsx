@@ -391,7 +391,10 @@ export function TripApp({ initialState }: TripAppProps) {
         ) : null}
       </main>
 
-      <CurrencyCalculator rate={state.settings.cnyToRubRate} />
+      <CurrencyCalculator
+        rate={state.settings.cnyToRubRate}
+        rateUpdatedAt={state.settings.rateUpdatedAt}
+      />
 
       <nav className="bottom-tabs" aria-label="Разделы">
         {tabs.map((tab) => (
@@ -533,12 +536,13 @@ function MoreView({
 
   return (
     <section className="view-stack" aria-labelledby="more-title">
-      <div className="more-switcher" role="tablist" aria-label="Дополнительно">
+      <div className="more-switcher" aria-label="Дополнительно">
         {moreSections.map((section) => (
           <button
             key={section.id}
             type="button"
             className={activeSection === section.id ? 'active' : ''}
+            aria-pressed={activeSection === section.id}
             onClick={() => setActiveSection(section.id)}
           >
             {section.icon}
@@ -1229,7 +1233,7 @@ function PlacesView({ state, commit }: { state: TripState; commit: Commit }) {
                 >
                   Были
                 </button>
-                <ExternalLinkButton href={place.url} label="Карта" />
+                <MapLinkButton place={place} />
               </div>
             </div>
           </article>
@@ -1977,7 +1981,7 @@ function ExpensesView({
           </label>
           <label>
             <span>Сумма</span>
-            <input name="amount" type="number" min="0" step="0.01" required />
+            <input name="amount" type="number" min="0.01" step="0.01" required />
           </label>
           <label>
             <span>Валюта</span>
@@ -2065,7 +2069,7 @@ function ExpensesView({
                       <input
                         name="amount"
                         type="number"
-                        min="0"
+                        min="0.01"
                         step="0.01"
                         defaultValue={expense.amount}
                         required
@@ -2992,11 +2996,17 @@ function SettingsView({
           <input
             name="cnyToRubRate"
             type="number"
-            min="0"
+            min="0.0001"
             step="0.0001"
             defaultValue={state.settings.cnyToRubRate}
           />
         </label>
+        {!isRateFresh(state.settings.rateUpdatedAt) ? (
+          <p className="form-warning">
+            Курс старше 6 часов. Если интернет недоступен, приложение оставит
+            последний сохранённый курс.
+          </p>
+        ) : null}
         <div className="button-row">
           <button className="secondary-button" type="submit">
             <Check size={18} />
@@ -3137,6 +3147,7 @@ function RouteItemDetailModal({
   onClose: () => void
 }) {
   useBodyScrollLock(true)
+  useEscapeKey(onClose)
 
   if (item.kind === 'place') {
     const place = state.places.find((candidate) => candidate.id === item.refId)
@@ -3147,7 +3158,12 @@ function RouteItemDetailModal({
     )
 
     return (
-      <div className="modal-backdrop" role="dialog" aria-modal="true">
+      <div
+        className="modal-backdrop"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Карточка места"
+      >
         <article className="detail-modal">
           <button
             className="modal-close"
@@ -3176,14 +3192,14 @@ function RouteItemDetailModal({
                 label="Статус"
                 value={place.status === 'want' ? 'Хочу' : 'Были'}
               />
-              <DetailInfoRow label="Карта/адрес" value={place.url} />
+              <DetailInfoRow label="Карта/адрес" value={placeMapDisplayValue(place)} />
             </div>
             {place.note ? <p>{place.note}</p> : null}
             <div className="card-actions">
               <span className={`chip-button ${place.status === 'want' ? 'active' : ''}`}>
                 {place.status === 'want' ? 'Хочу' : 'Были'}
               </span>
-              <ExternalLinkButton href={place.url} label="Карта" />
+              <MapLinkButton place={place} />
             </div>
           </div>
         </article>
@@ -3197,7 +3213,12 @@ function RouteItemDetailModal({
     const day = state.days.find((candidate) => candidate.id === item.dayId)
 
     return (
-      <div className="modal-backdrop" role="dialog" aria-modal="true">
+      <div
+        className="modal-backdrop"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Карточка отеля"
+      >
         <article className="detail-modal">
           <button
             className="modal-close"
@@ -3423,6 +3444,7 @@ function PhotoLightbox({
   onClose: () => void
 }) {
   useBodyScrollLock(true)
+  useEscapeKey(onClose)
 
   return (
     <div className="media-lightbox" role="dialog" aria-modal="true">
@@ -3484,11 +3506,18 @@ function DocumentPreview({
   )
 }
 
-function CurrencyCalculator({ rate }: { rate: number }) {
+function CurrencyCalculator({
+  rate,
+  rateUpdatedAt,
+}: {
+  rate: number
+  rateUpdatedAt: string
+}) {
   const [isOpen, setIsOpen] = useState(false)
   const [amount, setAmount] = useState('100')
   const [direction, setDirection] = useState<'cny-rub' | 'rub-cny'>('cny-rub')
   useBodyScrollLock(isOpen)
+  useEscapeKey(() => setIsOpen(false), isOpen)
   const numericAmount = Number(amount.replace(',', '.'))
   const isValidAmount = Number.isFinite(numericAmount) && numericAmount >= 0
   const result = isValidAmount
@@ -3504,7 +3533,12 @@ function CurrencyCalculator({ rate }: { rate: number }) {
   return (
     <div className={`calculator-widget ${isOpen ? 'open' : ''}`}>
       {isOpen ? (
-        <div className="calculator-panel" role="dialog" aria-label="Конвертер валют">
+        <div
+          className="calculator-panel"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Конвертер валют"
+        >
           <div className="title-row">
             <div>
               <p className="eyebrow">Конвертер</p>
@@ -3551,7 +3585,14 @@ function CurrencyCalculator({ rate }: { rate: number }) {
                 : '—'}
             </strong>
           </div>
-          <p className="muted-text">Курс: 1 CNY = {rate.toFixed(2)} RUB</p>
+          <p className="muted-text">
+            Курс: 1 CNY = {rate.toFixed(2)} RUB · {rateAgeText(rateUpdatedAt)}
+          </p>
+          {!isRateFresh(rateUpdatedAt) ? (
+            <p className="form-warning">
+              Нет свежего курса. Использую последний сохранённый.
+            </p>
+          ) : null}
         </div>
       ) : null}
       <button
@@ -3672,6 +3713,7 @@ function ConfirmDialog({
   onConfirm: () => void
 }) {
   useBodyScrollLock(true)
+  useEscapeKey(onCancel)
 
   return (
     <div className="modal-backdrop confirm-backdrop" role="presentation">
@@ -3745,13 +3787,18 @@ function CurrencySelect({ defaultValue = 'CNY' }: { defaultValue?: Currency }) {
 }
 
 function ExternalLinkButton({ href, label }: { href: string; label: string }) {
-  if (!href) return null
+  const normalizedHref = normalizeExternalUrl(href)
+  if (!normalizedHref) return null
   return (
-    <a className="link-chip" href={href} target="_blank" rel="noreferrer">
+    <a className="link-chip" href={normalizedHref} target="_blank" rel="noreferrer">
       <ExternalLink size={14} />
       <span>{label}</span>
     </a>
   )
+}
+
+function MapLinkButton({ place }: { place: Place }) {
+  return <ExternalLinkButton href={placeMapUrl(place)} label="Карта" />
 }
 
 function DocumentOpenButton({
@@ -3825,12 +3872,31 @@ function useBodyScrollLock(locked: boolean) {
     if (!locked) return
 
     const previousOverflow = document.body.style.overflow
+    const previousHtmlOverflow = document.documentElement.style.overflow
     document.body.style.overflow = 'hidden'
+    document.documentElement.style.overflow = 'hidden'
 
     return () => {
       document.body.style.overflow = previousOverflow
+      document.documentElement.style.overflow = previousHtmlOverflow
     }
   }, [locked])
+}
+
+function useEscapeKey(onEscape: () => void, enabled = true) {
+  useEffect(() => {
+    if (!enabled) return
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') onEscape()
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [enabled, onEscape])
 }
 
 function useMinuteClock() {
@@ -3878,9 +3944,37 @@ function getDayItemEntity(item: DayItem, state: TripState) {
 }
 
 function buildDayMapUrl(day: Day, state: TripState) {
-  const place = state.places.find((candidate) => candidate.dayId === day.id)
-  if (place?.url) return place.url
-  return `https://maps.apple.com/?q=${encodeURIComponent(`${day.city} China`)}`
+  const linkedPlace = state.dayItems
+    .filter((item) => item.dayId === day.id && item.kind === 'place')
+    .map((item) => state.places.find((place) => place.id === item.refId))
+    .find((place): place is Place => Boolean(place))
+  const dayPlace =
+    linkedPlace ?? state.places.find((candidate) => candidate.dayId === day.id)
+
+  if (dayPlace) return placeMapUrl(dayPlace)
+
+  return mapSearchUrl(`${day.city} China`)
+}
+
+function placeMapUrl(place: Place) {
+  return normalizeExternalUrl(place.url) || mapSearchUrl(`${place.name} ${place.city} China`)
+}
+
+function placeMapDisplayValue(place: Place) {
+  return normalizeExternalUrl(place.url) || place.url || `${place.name}, ${place.city}`
+}
+
+function mapSearchUrl(query: string) {
+  return `https://maps.apple.com/?q=${encodeURIComponent(query)}`
+}
+
+function normalizeExternalUrl(value: string) {
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+
+  const directUrl = trimmed.match(/^https?:\/\/\S+$/i)?.[0]
+  const embeddedUrl = trimmed.match(/https?:\/\/\S+/i)?.[0]
+  return (directUrl ?? embeddedUrl ?? '').replace(/[),.;]+$/g, '')
 }
 
 function documentTitle(text: string) {
@@ -3938,9 +4032,10 @@ function documentOpenLabel(value: string) {
 function openDocumentValue(value: string) {
   if (!value) return
 
+  const documentUrl = documentUrlFromValue(value)
   const targetWindow = window.open('', '_blank')
   if (!targetWindow) {
-    if (isDocumentUrl(value)) window.location.href = value
+    if (documentUrl) window.location.href = documentUrl
     return
   }
 
@@ -3948,8 +4043,8 @@ function openDocumentValue(value: string) {
   targetWindow.document.title = documentOpenLabel(value)
 
   if (!isEmbeddedFile(value)) {
-    if (isDocumentUrl(value)) {
-      targetWindow.location.href = value
+    if (documentUrl) {
+      targetWindow.location.href = documentUrl
       return
     }
 
@@ -3993,13 +4088,19 @@ function openDocumentValue(value: string) {
 }
 
 function isDocumentUrl(value: string) {
-  return /^(https?:|blob:|file:|\/)/i.test(value)
+  return Boolean(documentUrlFromValue(value))
+}
+
+function documentUrlFromValue(value: string) {
+  const trimmed = value.trim()
+  if (/^(blob:|file:|\/)/i.test(trimmed)) return trimmed
+  return normalizeExternalUrl(trimmed)
 }
 
 function renderDocumentNote(targetWindow: Window, value: string) {
   targetWindow.document.body.style.margin = '0'
-  targetWindow.document.body.style.background = '#f4f7f8'
-  targetWindow.document.body.style.color = '#172033'
+  targetWindow.document.body.style.background = '#f7f7f5'
+  targetWindow.document.body.style.color = '#18181b'
   targetWindow.document.body.style.font =
     '16px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
   targetWindow.document.body.innerHTML = ''
@@ -4332,6 +4433,24 @@ function isRateFresh(value: string) {
   const timestamp = Date.parse(value)
   if (!Number.isFinite(timestamp)) return false
   return Date.now() - timestamp < 6 * 60 * 60 * 1000
+}
+
+function rateAgeText(value: string) {
+  const timestamp = Date.parse(value)
+  if (!Number.isFinite(timestamp)) return 'нет даты обновления'
+
+  const minutes = Math.max(0, Math.round((Date.now() - timestamp) / 60_000))
+  if (minutes < 60) {
+    return `${minutes || 1} ${pluralRu(minutes || 1, ['минуту', 'минуты', 'минут'])} назад`
+  }
+
+  const hours = Math.round(minutes / 60)
+  if (hours < 24) {
+    return `${hours} ${pluralRu(hours, ['час', 'часа', 'часов'])} назад`
+  }
+
+  const days = Math.round(hours / 24)
+  return `${days} ${pluralRu(days, ['день', 'дня', 'дней'])} назад`
 }
 
 function formatRawMoney(amount: number, currency: Currency) {
