@@ -26,7 +26,6 @@ import { MoreView } from '../features/settings/MoreView'
 import type { SaveStatus } from '../features/trip/types'
 import type { TravelerId, TripState } from '../types/trip'
 import { lockTrip, updateTripSettings } from '../server/functions'
-import { getTravelerName, sortedDays, todayDate } from '../features/trip/shared'
 
 type MainTab = 'today' | 'route' | 'places' | 'money' | 'more'
 
@@ -60,9 +59,6 @@ export function TripApp({ initialState }: TripAppProps) {
   const currentTraveler =
     state.travelers.find((traveler) => traveler.id === currentTravelerId) ??
     state.travelers[0]
-  const tripDays = sortedDays(state.days)
-  const upcomingDay =
-    tripDays.find((day) => day.date >= todayDate()) ?? tripDays[tripDays.length - 1]
 
   useEffect(() => {
     setIsOnline(window.navigator.onLine)
@@ -149,7 +145,7 @@ export function TripApp({ initialState }: TripAppProps) {
       <Toaster richColors position="top-center" closeButton />
       <div className="mx-auto grid min-h-svh w-full max-w-6xl md:grid-cols-[240px_minmax(0,1fr)]">
         <aside className="sticky top-0 hidden h-svh border-r border-border bg-sidebar px-3 py-4 text-sidebar-foreground md:grid md:grid-rows-[auto_1fr_auto]">
-          <TripIdentity upcomingDay={upcomingDay?.city} />
+          <TripIdentity />
           <nav className="mt-6 grid content-start gap-1" aria-label="Основные разделы">
             {navItems.map((item) => (
               <NavButton
@@ -177,7 +173,7 @@ export function TripApp({ initialState }: TripAppProps) {
         <div className="grid min-w-0 grid-rows-[auto_1fr]">
           <header className="sticky top-0 z-30 border-b border-border bg-background/90 px-4 pb-3 pt-[calc(12px+env(safe-area-inset-top))] backdrop-blur md:px-6">
             <div className="flex items-start justify-between gap-3">
-              <TripIdentity compact upcomingDay={upcomingDay?.city} />
+              <TripIdentity compact />
               <div className="flex items-center gap-2">
                 <StatusBadgeMini saveStatus={saveStatus} isOnline={isOnline} />
                 <Button variant="outline" size="icon" type="button" onClick={handleThemeToggle}>
@@ -198,17 +194,20 @@ export function TripApp({ initialState }: TripAppProps) {
           {navItems.map((item) => (
             <button
               key={item.id}
-              className={`grid h-14 place-items-center rounded-2xl text-[11px] font-medium transition ${
+              className={`grid h-12 place-items-center rounded-2xl transition ${
                 activeTab === item.id
                   ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'
               }`}
               type="button"
               onClick={() => setActiveTab(item.id)}
+              aria-label={item.label}
               aria-current={activeTab === item.id ? 'page' : undefined}
             >
-              <span className="[&_svg]:size-5">{item.icon}</span>
-              <span>{item.label}</span>
+              <span className="[&_svg]:size-5" aria-hidden="true">
+                {item.icon}
+              </span>
+              <span className="sr-only">{item.label}</span>
             </button>
           ))}
         </div>
@@ -220,29 +219,18 @@ export function TripApp({ initialState }: TripAppProps) {
 
 function TripIdentity({
   compact,
-  upcomingDay,
 }: {
   compact?: boolean
-  upcomingDay?: string
 }) {
   return (
     <div className="min-w-0">
-      <div className="flex flex-wrap gap-1.5">
-        <Badge className="border-destructive/20 bg-destructive/10 text-destructive">
-          8-20 августа
-        </Badge>
-        <Badge>до 25 авг.</Badge>
-      </div>
       <h1
-        className={`mt-2 truncate font-semibold tracking-tight ${
+        className={`truncate font-semibold tracking-tight ${
           compact ? 'text-2xl' : 'text-3xl'
         }`}
       >
         China Trip
       </h1>
-      <p className="mt-1 truncate text-sm font-medium text-muted-foreground">
-        Матвей · Артур · Лера · {upcomingDay ?? 'Гуанчжоу'}
-      </p>
     </div>
   )
 }

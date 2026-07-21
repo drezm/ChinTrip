@@ -45,11 +45,13 @@ export function TodayView({
         aside={activeDay ? <Badge>{formatWeekday(activeDay.date)}</Badge> : null}
       />
 
-      <div className="grid gap-3 md:grid-cols-3">
-        <TimeCard label="Дата" value={formatShortDate(activeDay?.date ?? today)} />
-        <TimeCard label="Москва" value={formatZonedTime('Europe/Moscow')} />
-        <TimeCard label="Гуанчжоу" value={formatZonedTime('Asia/Shanghai')} />
-      </div>
+      <Card>
+        <CardContent className="grid grid-cols-3 gap-2 p-3">
+          <TimeStat label="Дата" value={formatShortDate(activeDay?.date ?? today)} />
+          <TimeStat label="МСК" value={formatZonedTime('Europe/Moscow')} />
+          <TimeStat label="Гуанчжоу" value={formatZonedTime('Asia/Shanghai')} />
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.8fr)]">
         <Card>
@@ -160,19 +162,15 @@ export function TodayView({
   )
 }
 
-function TimeCard({ label, value }: { label: string; value: string }) {
+function TimeStat({ label, value }: { label: string; value: string }) {
   return (
-    <Card>
-      <CardContent className="flex items-center gap-3 pt-4">
-        <div className="grid size-10 place-items-center rounded-2xl bg-muted text-muted-foreground">
-          <Clock className="size-4" />
-        </div>
-        <div>
-          <p className="text-xs font-medium text-muted-foreground">{label}</p>
-          <strong>{value}</strong>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="min-w-0 rounded-2xl bg-muted/60 px-3 py-2">
+      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+        <Clock className="size-3.5 shrink-0" />
+        <span className="truncate">{label}</span>
+      </div>
+      <strong className="mt-1 block truncate text-base leading-tight">{value}</strong>
+    </div>
   )
 }
 
@@ -183,4 +181,3 @@ function formatZonedTime(timeZone: string) {
     timeZone,
   }).format(new Date())
 }
-

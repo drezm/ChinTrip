@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { CalendarPlus, FileText, Map, Plus } from 'lucide-react'
+import { CalendarPlus, FileText, Plus } from 'lucide-react'
 
 import {
   createDay,
@@ -49,8 +49,6 @@ export function RouteView({ state, mutate }: FeatureProps) {
           </Button>
         }
       />
-
-      <RouteMap days={days} />
 
       <div className="grid gap-3">
         {days.map((day, index) => {
@@ -209,37 +207,6 @@ export function RouteView({ state, mutate }: FeatureProps) {
   )
 }
 
-function RouteMap({ days }: { days: Day[] }) {
-  return (
-    <Card>
-      <CardContent className="grid gap-3 pt-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase text-destructive">Карта</p>
-            <h3 className="text-lg font-semibold">Маршрут по дням</h3>
-          </div>
-          <Map className="size-5 text-muted-foreground" />
-        </div>
-        <div className="flex snap-x gap-2 overflow-x-auto pb-1">
-          {days.map((day, index) => (
-            <a
-              className="grid min-w-36 snap-start gap-1 rounded-2xl border border-border bg-muted/50 p-3 text-sm"
-              key={day.id}
-              href={`https://maps.apple.com/?q=${encodeURIComponent(day.city)}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              <span className="text-xs text-muted-foreground">День {index + 1}</span>
-              <strong>{day.city}</strong>
-              <span className="text-xs text-muted-foreground">{formatShortDate(day.date)}</span>
-            </a>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
 function DayForm({
   day,
   onSubmit,
@@ -303,4 +270,3 @@ function NoteForm({
     </form>
   )
 }
-
