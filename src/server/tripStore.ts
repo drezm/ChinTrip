@@ -2,7 +2,8 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
 import { createSeedTripState } from '../lib/seed'
-import type { TripState } from '../lib/types'
+import { calculateAmountCny, createExpenseSplits } from '../lib/money'
+import type { Expense, ExpenseShare, TripState } from '../lib/types'
 
 const DATA_FILE = join(process.cwd(), 'data', 'trip-db.json')
 
@@ -37,6 +38,20 @@ export async function writeTripState(state: TripState) {
 
 function normalizeTripState(state: Partial<TripState>): TripState {
   const seed = createSeedTripState()
+  const settings = {
+    ...seed.settings,
+    ...(state.settings ?? {}),
+  }
+  const expenses = normalizeExpenses(
+    state.expenses ?? seed.expenses,
+    settings.cnyToRubRate,
+    state.travelers ?? seed.travelers,
+  )
+  const expenseShares = state.expenseShares ?? seed.expenseShares
+  const expenseSplits =
+    state.expenseSplits && state.expenseSplits.length
+      ? state.expenseSplits
+      : migrateExpenseShares(expenses, expenseShares)
 
   return {
     travelers: state.travelers ?? seed.travelers,
@@ -49,14 +64,13 @@ function normalizeTripState(state: Partial<TripState>): TripState {
     tickets: state.tickets ?? seed.tickets,
     days: state.days ?? seed.days,
     dayItems: state.dayItems ?? seed.dayItems,
-    expenses: state.expenses ?? seed.expenses,
-    expenseShares: state.expenseShares ?? seed.expenseShares,
+    expenses,
+    expenseShares,
+    expenseSplits,
+    payments: state.payments ?? seed.payments,
     checklists: state.checklists ?? seed.checklists,
     checklistItems: state.checklistItems ?? seed.checklistItems,
-    settings: {
-      ...seed.settings,
-      ...(state.settings ?? {}),
-    },
+    settings,
   }
 }
 
@@ -82,4 +96,54 @@ function mergePlaceSections(
   }
 
   return result.sort((left, right) => left.sortOrder - right.sortOrder)
+}
+
+function normalizeExpenses(
+  expenses: TripState['expenses'],
+  cnyToRubRate: number,
+  travelers: TripState['travelers'],
+) {
+  const fallbackTravelerId = travelers[0]?.id ?? 'traveler-a'
+
+  return expenses.map((expense) => {
+    const legacyExpense = expense as Partial<Expense>
+    const exchangeRate = positiveNumber(legacyExpense.exchangeRate, cnyToRubRate)
+    const amountCny =
+      positiveNumber(legacyExpense.amountCny, 0) ||
+      calculateAmountCny(expense.amount, expense.currency, exchangeRate)
+    const createdAt = legacyExpense.createdAt ?? new Date().toISOString()
+
+    return {
+      ...expense,
+      exchangeRate,
+      amountCny,
+      splitType: legacyExpense.splitType ?? 'equal',
+      createdBy: legacyExpense.createdBy ?? expense.payerId ?? fallbackTravelerId,
+      createdAt,
+      updatedAt: legacyExpense.updatedAt ?? createdAt,
+    }
+  })
+}
+
+function migrateExpenseShares(expenses: TripState['expenses'], shares: ExpenseShare[]) {
+  return expenses.flatMap((expense) => {
+    const participantIds = shares
+      .filter((share) => share.expenseId === expense.id)
+      .map((share) => share.travelerId)
+
+    if (!participantIds.length) return []
+
+    return createExpenseSplits({
+      expenseId: expense.id,
+      amountCny: expense.amountCny,
+      splitType: 'equal',
+      participants: participantIds.map((travelerId) => ({ travelerId })),
+    })
+  })
+}
+
+function positiveNumber(value: unknown, fallback: number) {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? value
+    : fallback
 }

@@ -307,6 +307,8 @@ export function createSeedTripState(): TripState {
     ],
     expenses: [],
     expenseShares: [],
+    expenseSplits: [],
+    payments: [],
     checklists: [
       { id: 'check-visa', title: 'Визы и документы', kind: 'visa' },
       { id: 'check-packing', title: 'Что взять', kind: 'packing' },
@@ -360,6 +362,7 @@ export function createSeedTripState(): TripState {
       cnyToRubRate: 11.4,
       rateUpdatedAt: now,
       displayCurrency: 'CNY',
+      theme: 'system',
     },
   }
 }

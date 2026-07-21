@@ -3,8 +3,54 @@ import { createServerFn } from '@tanstack/react-start'
 import {
   calculateBalances,
   calculateSettlements,
-} from '../lib/balances'
-import type { TripState } from '../lib/types'
+} from '../lib/money'
+import { throwServerError } from '../lib/errors/server-error'
+import {
+  parseWithSchema,
+  updateTripSettingsSchema,
+} from './validation/schemas'
+
+export { lockTrip } from './sessionActions'
+export {
+  assignPlaceToDay,
+  changePlaceStatus,
+  createChecklist,
+  createChecklistItem,
+  createDay,
+  createDayItem,
+  createExpense,
+  createHotel,
+  createPayment,
+  createPlace,
+  createPlaceSection,
+  createTicket,
+  deleteChecklist,
+  deleteChecklistItem,
+  deleteDay,
+  deleteDayItem,
+  deleteExpense,
+  deleteHotel,
+  deletePayment,
+  deletePlace,
+  deletePlaceSection,
+  deleteTicket,
+  markPaymentAsCompleted,
+  moveDayItemToAnotherDay,
+  reorderChecklistItems,
+  reorderDayItems,
+  toggleChecklistItem,
+  updateChecklist,
+  updateChecklistItem,
+  updateDay,
+  updateDayItem,
+  updateExpense,
+  updateHotel,
+  updatePayment,
+  updatePlace,
+  updatePlaceSection,
+  updateTicket,
+  updateTripSettings,
+} from './actions/entityActions'
 
 export const getSessionStatus = createServerFn({ method: 'GET' }).handler(
   async () => {
@@ -22,41 +68,22 @@ export const unlockTrip = createServerFn({ method: 'POST' })
     return { ok: true }
   })
 
-export const lockTrip = createServerFn({ method: 'POST' }).handler(async () => {
-  const { lockSession } = await import('./auth')
-  await lockSession()
-  return { ok: true }
-})
-
 export const getTripState = createServerFn({ method: 'GET' }).handler(
   async () => {
-    const { requireUnlocked } = await import('./auth')
-    const { readTripState } = await import('./tripStore')
-    await requireUnlocked()
-    return readTripState()
+    const { readAuthorizedTripState } = await import('./repositories/stateMutation')
+    return readAuthorizedTripState()
   },
 )
 
-export const saveTripState = createServerFn({ method: 'POST' })
-  .validator((state: TripState) => state)
-  .handler(async ({ data }) => {
-    const { requireUnlocked } = await import('./auth')
-    const { writeTripState } = await import('./tripStore')
-    await requireUnlocked()
-    return writeTripState(data)
-  })
-
 export const getBalances = createServerFn({ method: 'GET' }).handler(
   async () => {
-    const { requireUnlocked } = await import('./auth')
-    const { readTripState } = await import('./tripStore')
-    await requireUnlocked()
-    const state = await readTripState()
+    const { readAuthorizedTripState } = await import('./repositories/stateMutation')
+    const state = await readAuthorizedTripState()
     const balances = calculateBalances(
       state.travelers,
       state.expenses,
-      state.expenseShares,
-      state.settings.cnyToRubRate,
+      state.expenseSplits,
+      state.payments,
     )
 
     return {
@@ -66,26 +93,38 @@ export const getBalances = createServerFn({ method: 'GET' }).handler(
   },
 )
 
-export const refreshRate = createServerFn({ method: 'POST' }).handler(
+export const refreshExchangeRate = createServerFn({ method: 'POST' }).handler(
   async () => {
-    const { requireUnlocked } = await import('./auth')
-    const { readTripState, writeTripState } = await import('./tripStore')
-    await requireUnlocked()
-
-    const rate = await fetchCnyToRubRate()
-    const state = await readTripState()
-    const next: TripState = {
-      ...state,
-      settings: {
-        ...state.settings,
-        cnyToRubRate: rate,
-        rateUpdatedAt: new Date().toISOString(),
-      },
+    try {
+      const rate = await fetchCnyToRubRate()
+      const { mutateTripState } = await import('./repositories/stateMutation')
+      return mutateTripState((state) => {
+        const input = parseWithSchema(updateTripSettingsSchema, {
+          cnyToRubRate: rate,
+        })
+        return {
+          state: {
+            ...state,
+            settings: {
+              ...state.settings,
+              ...input,
+              rateUpdatedAt: new Date().toISOString(),
+            },
+          },
+          result: {
+            ...state.settings,
+            ...input,
+            rateUpdatedAt: new Date().toISOString(),
+          },
+        }
+      })
+    } catch (error) {
+      throwServerError(error)
     }
-
-    return writeTripState(next)
   },
 )
+
+export const refreshRate = refreshExchangeRate
 
 async function fetchCnyToRubRate() {
   const attempts = [
@@ -117,7 +156,7 @@ async function fetchCnyToRubRate() {
     try {
       return await attempt()
     } catch {
-      // Try the next no-key provider before surfacing the failure.
+      // Try the next no-key provider before using the cached rate.
     }
   }
 

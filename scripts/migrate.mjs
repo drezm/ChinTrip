@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 
 import pg from 'pg'
@@ -19,11 +19,18 @@ const client = new Client({
 })
 
 try {
-  const migrationPath = resolve('lovable/migrations/001_initial_schema.sql')
-  const sql = await readFile(migrationPath, 'utf8')
+  const migrationsDir = resolve('lovable/migrations')
+  const migrationFiles = (await readdir(migrationsDir))
+    .filter((file) => file.endsWith('.sql'))
+    .sort()
+
   await client.connect()
-  await client.query(sql)
-  console.log('Database migration completed.')
+  for (const file of migrationFiles) {
+    const sql = await readFile(resolve(migrationsDir, file), 'utf8')
+    await client.query(sql)
+    console.log(`Applied migration: ${file}`)
+  }
+  console.log('Database migrations completed.')
 } finally {
   await client.end()
 }
