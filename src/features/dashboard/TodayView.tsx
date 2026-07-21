@@ -31,9 +31,12 @@ export function TodayView({
   const currentHotel = state.hotels.find((hotel) => {
     return hotel.checkIn <= (activeDay?.date ?? today) && hotel.checkOut >= (activeDay?.date ?? today)
   })
-  const openChecklistItems = state.checklistItems
-    .filter((item) => !item.done)
-    .sort((left, right) => left.sortOrder - right.sortOrder)
+  const openChecklistItems = state.checklistItems.filter((item) => !item.done)
+  const checklistItems = [...state.checklistItems]
+    .sort(
+      (left, right) =>
+        Number(left.done) - Number(right.done) || left.sortOrder - right.sortOrder,
+    )
     .slice(0, 6)
 
   return (
@@ -118,15 +121,20 @@ export function TodayView({
               <div className="flex min-w-0 items-center justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-semibold uppercase text-destructive">Чеклист</p>
-                  <h3 className="text-lg font-semibold">Открытые дела</h3>
+                  <h3 className="text-lg font-semibold">Дела</h3>
                 </div>
-                <CheckSquare className="size-5 shrink-0 text-muted-foreground" />
+                <div className="flex shrink-0 items-center gap-2">
+                  <Badge>{openChecklistItems.length} открыто</Badge>
+                  <CheckSquare className="size-5 shrink-0 text-muted-foreground" />
+                </div>
               </div>
               <div className="grid gap-2">
-                {openChecklistItems.length ? (
-                  openChecklistItems.map((item) => (
+                {checklistItems.length ? (
+                  checklistItems.map((item) => (
                     <label
-                      className="flex min-h-11 min-w-0 items-center gap-3 rounded-2xl bg-muted/60 px-3 text-sm"
+                      className={`flex min-h-11 min-w-0 items-center gap-3 rounded-2xl px-3 text-sm transition ${
+                        item.done ? 'bg-muted/35 text-muted-foreground' : 'bg-muted/60'
+                      }`}
                       key={item.id}
                     >
                       <input
@@ -155,13 +163,19 @@ export function TodayView({
                           )
                         }}
                       />
-                      <span className="min-w-0 break-words [overflow-wrap:anywhere]">
+                      <span
+                        className={`min-w-0 break-words [overflow-wrap:anywhere] ${
+                          item.done
+                            ? 'line-through decoration-muted-foreground/70 decoration-2'
+                            : ''
+                        }`}
+                      >
                         {item.text}
                       </span>
                     </label>
                   ))
                 ) : (
-                  <p className="text-sm text-muted-foreground">Все открытые пункты закрыты.</p>
+                  <p className="text-sm text-muted-foreground">В чек-листе пока пусто.</p>
                 )}
               </div>
             </CardContent>

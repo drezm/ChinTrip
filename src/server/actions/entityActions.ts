@@ -51,8 +51,9 @@ import {
 
 export const createExpense = createServerFn({ method: 'POST' })
   .validator((value: unknown) => value)
-  .handler(async ({ data }) =>
-    mutateTripState((state) => {
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
       const input = parseWithSchema(createExpenseSchema, data)
       validateExpenseBusinessRules(state, input)
       const timestamp = nowIso()
@@ -103,13 +104,14 @@ export const createExpense = createServerFn({ method: 'POST' })
         },
         result: { expense, splits },
       }
-    }),
-  )
+    })
+  })
 
 export const updateExpense = createServerFn({ method: 'POST' })
   .validator((value: unknown) => value)
-  .handler(async ({ data }) =>
-    mutateTripState((state) => {
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
       const input = parseWithSchema(updateExpenseSchema, data)
       const existing = findRequired(state.expenses, input.id, 'Расход не найден')
       const fullInput = {
@@ -174,13 +176,14 @@ export const updateExpense = createServerFn({ method: 'POST' })
         },
         result: { expense, splits },
       }
-    }),
-  )
+    })
+  })
 
 export const deleteExpense = createServerFn({ method: 'POST' })
   .validator((value: unknown) => value)
-  .handler(async ({ data }) =>
-    mutateTripState((state) => {
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
       const input = parseWithSchema(updateExpenseSchema.pick({ id: true }), data)
       findRequired(state.expenses, input.id, 'Расход не найден')
       return {
@@ -196,13 +199,14 @@ export const deleteExpense = createServerFn({ method: 'POST' })
         },
         result: { id: input.id },
       }
-    }),
-  )
+    })
+  })
 
 export const createPayment = createServerFn({ method: 'POST' })
   .validator((value: unknown) => value)
-  .handler(async ({ data }) =>
-    mutateTripState((state) => {
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
       const input = parseWithSchema(createPaymentSchema, data)
       assertTraveler(state, input.fromTravelerId)
       assertTraveler(state, input.toTravelerId)
@@ -230,13 +234,14 @@ export const createPayment = createServerFn({ method: 'POST' })
         state: { ...state, payments: [payment, ...state.payments] },
         result: payment,
       }
-    }),
-  )
+    })
+  })
 
 export const updatePayment = createServerFn({ method: 'POST' })
   .validator((value: unknown) => value)
-  .handler(async ({ data }) =>
-    mutateTripState((state) => {
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
       const input = parseWithSchema(updatePaymentSchema, data)
       const existing = findRequired(state.payments, input.id, 'Платёж не найден')
       if (input.fromTravelerId) assertTraveler(state, input.fromTravelerId)
@@ -262,13 +267,14 @@ export const updatePayment = createServerFn({ method: 'POST' })
         },
         result: payment,
       }
-    }),
-  )
+    })
+  })
 
 export const deletePayment = createServerFn({ method: 'POST' })
   .validator((value: unknown) => value)
-  .handler(async ({ data }) =>
-    mutateTripState((state) => {
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
       const input = parseWithSchema(updatePaymentSchema.pick({ id: true }), data)
       findRequired(state.payments, input.id, 'Платёж не найден')
       return {
@@ -278,13 +284,14 @@ export const deletePayment = createServerFn({ method: 'POST' })
         },
         result: { id: input.id },
       }
-    }),
-  )
+    })
+  })
 
 export const markPaymentAsCompleted = createServerFn({ method: 'POST' })
   .validator((value: unknown) => value)
-  .handler(async ({ data }) =>
-    mutateTripState((state) => {
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
       const input = parseWithSchema(markPaymentAsCompletedSchema, data)
       const existing = findRequired(state.payments, input.id, 'Платёж не найден')
       const payment: Payment = {
@@ -302,13 +309,14 @@ export const markPaymentAsCompleted = createServerFn({ method: 'POST' })
         },
         result: payment,
       }
-    }),
-  )
+    })
+  })
 
 export const createPlace = createServerFn({ method: 'POST' })
   .validator((value: unknown) => value)
-  .handler(async ({ data }) =>
-    mutateTripState((state) => {
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
       const input = parseWithSchema(createPlaceSchema, data)
       validateEntityLinks(state, input)
       const timestamp = nowIso()
@@ -335,13 +343,14 @@ export const createPlace = createServerFn({ method: 'POST' })
         },
         result: place,
       }
-    }),
-  )
+    })
+  })
 
 export const updatePlace = createServerFn({ method: 'POST' })
   .validator((value: unknown) => value)
-  .handler(async ({ data }) =>
-    mutateTripState((state) => {
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
       const input = parseWithSchema(updatePlaceSchema, data)
       validateEntityLinks(state, input)
       const existing = findRequired(state.places, input.id, 'Место не найдено')
@@ -360,15 +369,16 @@ export const updatePlace = createServerFn({ method: 'POST' })
         },
         result: place,
       }
-    }),
-  )
+    })
+  })
 
 export const deletePlace = deleteEntityAction('places', 'Место не найдено')
 
 export const changePlaceStatus = createServerFn({ method: 'POST' })
   .validator((value: unknown) => value)
-  .handler(async ({ data }) =>
-    mutateTripState((state) => {
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
       const input = parseWithSchema(changePlaceStatusSchema, data)
       const existing = findRequired(state.places, input.id, 'Место не найдено')
       const place: Place = { ...existing, status: input.status, updatedAt: nowIso() }
@@ -381,13 +391,14 @@ export const changePlaceStatus = createServerFn({ method: 'POST' })
         },
         result: place,
       }
-    }),
-  )
+    })
+  })
 
 export const assignPlaceToDay = createServerFn({ method: 'POST' })
   .validator((value: unknown) => value)
-  .handler(async ({ data }) =>
-    mutateTripState((state) => {
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
       const input = parseWithSchema(assignPlaceToDaySchema, data)
       validateEntityLinks(state, { dayId: input.dayId })
       const existing = findRequired(state.places, input.placeId, 'Место не найдено')
@@ -402,13 +413,14 @@ export const assignPlaceToDay = createServerFn({ method: 'POST' })
         },
         result: place,
       }
-    }),
-  )
+    })
+  })
 
 export const createPlaceSection = createServerFn({ method: 'POST' })
   .validator((value: unknown) => value)
-  .handler(async ({ data }) =>
-    mutateTripState((state) => {
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
       const title = String((data as { title?: string }).title ?? '').trim()
       if (!title) throw new Error('{"code":"VALIDATION_ERROR","message":"Название раздела обязательно","fieldErrors":{"title":["Название раздела обязательно"]}}')
       const section: PlaceSection = {
@@ -420,13 +432,14 @@ export const createPlaceSection = createServerFn({ method: 'POST' })
         state: { ...state, placeSections: [...state.placeSections, section] },
         result: section,
       }
-    }),
-  )
+    })
+  })
 
 export const updatePlaceSection = createServerFn({ method: 'POST' })
   .validator((value: unknown) => value)
-  .handler(async ({ data }) =>
-    mutateTripState((state) => {
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
       const input = data as { id?: string; title?: string }
       const section = findRequired(
         state.placeSections,
@@ -445,13 +458,14 @@ export const updatePlaceSection = createServerFn({ method: 'POST' })
         },
         result: updated,
       }
-    }),
-  )
+    })
+  })
 
 export const deletePlaceSection = createServerFn({ method: 'POST' })
   .validator((value: unknown) => value)
-  .handler(async ({ data }) =>
-    mutateTripState((state) => {
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
       const sectionId = String((data as { id?: string }).id ?? '')
       findRequired(state.placeSections, sectionId, 'Раздел не найден')
       const fallback = state.placeSections.find((section) => section.id !== sectionId)
@@ -470,8 +484,8 @@ export const deletePlaceSection = createServerFn({ method: 'POST' })
         },
         result: { id: sectionId, fallbackId: fallback.id },
       }
-    }),
-  )
+    })
+  })
 
 export const createDay = createSimpleEntityAction(
   createDaySchema,
@@ -485,8 +499,9 @@ export const updateDay = updateSimpleEntityAction(
 )
 export const deleteDay = createServerFn({ method: 'POST' })
   .validator((value: unknown) => value)
-  .handler(async ({ data }) =>
-    mutateTripState((state) => {
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
       const input = parseWithSchema(updateDaySchema.pick({ id: true }), data)
       findRequired(state.days, input.id, 'День не найден')
       return {
@@ -500,13 +515,14 @@ export const deleteDay = createServerFn({ method: 'POST' })
         },
         result: { id: input.id },
       }
-    }),
-  )
+    })
+  })
 
 export const createDayItem = createServerFn({ method: 'POST' })
   .validator((value: unknown) => value)
-  .handler(async ({ data }) =>
-    mutateTripState((state) => {
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
       const input = parseWithSchema(createDayItemSchema, data)
       findRequired(state.days, input.dayId, 'День не найден')
       const item = makeDayItem(
@@ -521,8 +537,8 @@ export const createDayItem = createServerFn({ method: 'POST' })
         state: { ...state, dayItems: [...state.dayItems, item] },
         result: item,
       }
-    }),
-  )
+    })
+  })
 export const updateDayItem = updateSimpleEntityAction(
   updateDayItemSchema,
   'dayItems',
@@ -534,8 +550,9 @@ export const deleteDayItem = deleteEntityAction(
 )
 export const reorderDayItems = createServerFn({ method: 'POST' })
   .validator((value: unknown) => value)
-  .handler(async ({ data }) =>
-    mutateTripState((state) => {
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
       const input = parseWithSchema(reorderDayItemsSchema, data)
       findRequired(state.days, input.dayId, 'День не найден')
       const order = new Map(input.itemIds.map((itemId, index) => [itemId, (index + 1) * 10]))
@@ -545,12 +562,13 @@ export const reorderDayItems = createServerFn({ method: 'POST' })
           : item,
       )
       return { state: { ...state, dayItems }, result: { dayId: input.dayId } }
-    }),
-  )
+    })
+  })
 export const moveDayItemToAnotherDay = createServerFn({ method: 'POST' })
   .validator((value: unknown) => value)
-  .handler(async ({ data }) =>
-    mutateTripState((state) => {
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
       const input = parseWithSchema(moveDayItemToAnotherDaySchema, data)
       findRequired(state.days, input.dayId, 'День не найден')
       const existing = findRequired(state.dayItems, input.id, 'Элемент маршрута не найден')
@@ -571,8 +589,8 @@ export const moveDayItemToAnotherDay = createServerFn({ method: 'POST' })
         },
         result: item,
       }
-    }),
-  )
+    })
+  })
 
 export const createHotel = createLinkedEntityAction(
   createHotelSchema,
@@ -625,8 +643,9 @@ export const updateChecklist = updateSimpleEntityAction(
 )
 export const deleteChecklist = createServerFn({ method: 'POST' })
   .validator((value: unknown) => value)
-  .handler(async ({ data }) =>
-    mutateTripState((state) => {
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
       const input = parseWithSchema(updateChecklistSchema.pick({ id: true }), data)
       findRequired(state.checklists, input.id, 'Список не найден')
       return {
@@ -639,12 +658,13 @@ export const deleteChecklist = createServerFn({ method: 'POST' })
         },
         result: { id: input.id },
       }
-    }),
-  )
+    })
+  })
 export const createChecklistItem = createServerFn({ method: 'POST' })
   .validator((value: unknown) => value)
-  .handler(async ({ data }) =>
-    mutateTripState((state) => {
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
       const input = parseWithSchema(createChecklistItemSchema, data)
       findRequired(state.checklists, input.checklistId, 'Список не найден')
       const timestamp = nowIso()
@@ -665,8 +685,8 @@ export const createChecklistItem = createServerFn({ method: 'POST' })
         state: { ...state, checklistItems: [...state.checklistItems, item] },
         result: item,
       }
-    }),
-  )
+    })
+  })
 export const updateChecklistItem = updateSimpleEntityAction(
   updateChecklistItemSchema,
   'checklistItems',
@@ -674,8 +694,9 @@ export const updateChecklistItem = updateSimpleEntityAction(
 )
 export const toggleChecklistItem = createServerFn({ method: 'POST' })
   .validator((value: unknown) => value)
-  .handler(async ({ data }) =>
-    mutateTripState((state) => {
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
       const input = parseWithSchema(toggleChecklistItemSchema, data)
       const existing = findRequired(state.checklistItems, input.id, 'Пункт не найден')
       const item = { ...existing, done: input.done, updatedAt: nowIso() }
@@ -688,16 +709,17 @@ export const toggleChecklistItem = createServerFn({ method: 'POST' })
         },
         result: item,
       }
-    }),
-  )
+    })
+  })
 export const deleteChecklistItem = deleteEntityAction(
   'checklistItems',
   'Пункт не найден',
 )
 export const reorderChecklistItems = createServerFn({ method: 'POST' })
   .validator((value: unknown) => value)
-  .handler(async ({ data }) =>
-    mutateTripState((state) => {
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
       const input = parseWithSchema(reorderChecklistItemsSchema, data)
       findRequired(state.checklists, input.checklistId, 'Список не найден')
       const order = new Map(input.itemIds.map((itemId, index) => [itemId, (index + 1) * 10]))
@@ -710,13 +732,14 @@ export const reorderChecklistItems = createServerFn({ method: 'POST' })
         state: { ...state, checklistItems },
         result: { checklistId: input.checklistId },
       }
-    }),
-  )
+    })
+  })
 
 export const updateTripSettings = createServerFn({ method: 'POST' })
   .validator((value: unknown) => value)
-  .handler(async ({ data }) =>
-    mutateTripState((state) => {
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
       const input = parseWithSchema(updateTripSettingsSchema, data)
       const settings = {
         ...state.settings,
@@ -724,8 +747,8 @@ export const updateTripSettings = createServerFn({ method: 'POST' })
         rateUpdatedAt: input.cnyToRubRate ? nowIso() : state.settings.rateUpdatedAt,
       }
       return { state: { ...state, settings }, result: settings }
-    }),
-  )
+    })
+  })
 
 function createSimpleEntityAction(
   schema: unknown,
@@ -734,16 +757,17 @@ function createSimpleEntityAction(
 ) {
   return createServerFn({ method: 'POST' })
     .validator((value: unknown) => value)
-    .handler(async ({ data }) =>
-      mutateTripState((state) => {
+    .handler(async ({ data }) => {
+      const { mutateTripState } = await import('../repositories/stateMutation')
+      return mutateTripState((state) => {
         const input = parseWithSchema(schema as never, data) as any
         const entity = makeEntity(input)
         return {
           state: { ...state, [key]: [entity, ...((state[key] as any[]) ?? [])] },
           result: entity,
         }
-      }),
-    )
+      })
+    })
 }
 
 function updateSimpleEntityAction(
@@ -756,8 +780,9 @@ function updateSimpleEntityAction(
 ) {
   return createServerFn({ method: 'POST' })
     .validator((value: unknown) => value)
-    .handler(async ({ data }) =>
-      mutateTripState((state) => {
+    .handler(async ({ data }) => {
+      const { mutateTripState } = await import('../repositories/stateMutation')
+      return mutateTripState((state) => {
         const input = parseWithSchema(schema as never, data) as {
           id: string
         } & Record<string, unknown>
@@ -772,8 +797,8 @@ function updateSimpleEntityAction(
           },
           result: entity,
         }
-      }),
-    )
+      })
+    })
 }
 
 function deleteEntityAction(
@@ -785,8 +810,9 @@ function deleteEntityAction(
 ) {
   return createServerFn({ method: 'POST' })
     .validator((value: unknown) => value)
-    .handler(async ({ data }) =>
-      mutateTripState((state) => {
+    .handler(async ({ data }) => {
+      const { mutateTripState } = await import('../repositories/stateMutation')
+      return mutateTripState((state) => {
         const itemId = String((data as { id?: string }).id ?? '')
         findRequired(state[key] as any[], itemId, missingMessage)
         return {
@@ -802,8 +828,8 @@ function deleteEntityAction(
           },
           result: { id: itemId },
         }
-      }),
-    )
+      })
+    })
 }
 
 function createLinkedEntityAction(
@@ -813,8 +839,9 @@ function createLinkedEntityAction(
 ) {
   return createServerFn({ method: 'POST' })
     .validator((value: unknown) => value)
-    .handler(async ({ data }) =>
-      mutateTripState((state) => {
+    .handler(async ({ data }) => {
+      const { mutateTripState } = await import('../repositories/stateMutation')
+      return mutateTripState((state) => {
         const input = parseWithSchema(schema as never, data) as any
         validateEntityLinks(state, input)
         const timestamp = nowIso()
@@ -837,8 +864,8 @@ function createLinkedEntityAction(
           },
           result: cleanEntity,
         }
-      }),
-    )
+      })
+    })
 }
 
 function updateLinkedEntityAction(
@@ -849,8 +876,9 @@ function updateLinkedEntityAction(
 ) {
   return createServerFn({ method: 'POST' })
     .validator((value: unknown) => value)
-    .handler(async ({ data }) =>
-      mutateTripState((state) => {
+    .handler(async ({ data }) => {
+      const { mutateTripState } = await import('../repositories/stateMutation')
+      return mutateTripState((state) => {
         const input = parseWithSchema(schema as never, data) as {
           id: string
           dayId?: string
@@ -870,8 +898,8 @@ function updateLinkedEntityAction(
           },
           result: entity,
         }
-      }),
-    )
+      })
+    })
 }
 
 function deleteLinkedEntityAction(
@@ -881,8 +909,9 @@ function deleteLinkedEntityAction(
 ) {
   return createServerFn({ method: 'POST' })
     .validator((value: unknown) => value)
-    .handler(async ({ data }) =>
-      mutateTripState((state) => {
+    .handler(async ({ data }) => {
+      const { mutateTripState } = await import('../repositories/stateMutation')
+      return mutateTripState((state) => {
         const itemId = String((data as { id?: string }).id ?? '')
         findRequired(state[key] as any[], itemId, missingMessage)
         return {
@@ -895,8 +924,8 @@ function deleteLinkedEntityAction(
           },
           result: { id: itemId },
         }
-      }),
-    )
+      })
+    })
 }
 
 function makeDayItem(
@@ -964,16 +993,6 @@ function slugify(title: string, existingIds: string[]) {
 
 function todayIsoDate() {
   return new Date().toISOString().slice(0, 10)
-}
-
-async function mutateTripState<T>(
-  updater: (state: import('../../types/trip').TripState) => {
-    state: import('../../types/trip').TripState
-    result: T
-  },
-) {
-  const repository = await import('../repositories/stateMutation')
-  return repository.mutateTripState(updater)
 }
 
 function id(prefix: string) {

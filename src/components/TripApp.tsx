@@ -358,7 +358,9 @@ function parseErrorMessage(error: unknown) {
 
 function isStaleServerFunctionError(error: unknown) {
   if (!(error instanceof Error)) return false
-  return /server function info not found/i.test(error.message)
+  return /server function info not found|createServerOnlyFn\(\) functions can only be called on the server/i.test(
+    error.message,
+  )
 }
 
 function useVisualViewportKeyboard() {

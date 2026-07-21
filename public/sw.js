@@ -1,4 +1,4 @@
-const CACHE_NAME = 'china-trip-v7'
+const CACHE_NAME = 'china-trip-v8'
 const APP_SHELL = [
   '/manifest.webmanifest',
   '/icon-192.svg',
