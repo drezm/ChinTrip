@@ -15,6 +15,7 @@ import {
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Toaster, toast } from 'sonner'
 
+import { CurrencyCalculator } from './shared/CurrencyCalculator'
 import { Button } from './ui/button'
 import { Badge } from '../features/trip/shared'
 import { TodayView } from '../features/dashboard/TodayView'
@@ -212,6 +213,7 @@ export function TripApp({ initialState }: TripAppProps) {
           ))}
         </div>
       </nav>
+      <CurrencyCalculator settings={state.settings} />
     </div>
   )
 }
