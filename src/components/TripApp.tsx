@@ -96,6 +96,12 @@ export function TripApp({ initialState }: TripAppProps) {
       toast.success(label)
       return result
     } catch (error) {
+      if (isStaleServerFunctionError(error)) {
+        setSaveStatus('error')
+        toast.warning('Обновляю приложение после деплоя...')
+        window.setTimeout(() => window.location.reload(), 700)
+        return null
+      }
       if (optimistic) setState(previous)
       setSaveStatus('error')
       toast.error(parseErrorMessage(error))
@@ -346,4 +352,9 @@ function parseErrorMessage(error: unknown) {
   } catch {
     return error.message || 'Не получилось сохранить'
   }
+}
+
+function isStaleServerFunctionError(error: unknown) {
+  if (!(error instanceof Error)) return false
+  return /server function info not found/i.test(error.message)
 }

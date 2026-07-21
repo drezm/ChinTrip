@@ -25,39 +25,22 @@ export async function readTripStateFromPostgres(): Promise<TripState> {
   const client = await getPool().connect()
 
   try {
-    const [
-      travelers,
-      places,
-      hotels,
-      tickets,
-      days,
-      placeSections,
-      dayItems,
-      expenses,
-      expenseShares,
-      expenseSplits,
-      payments,
-      checklists,
-      checklistItems,
-      settings,
-    ] = await Promise.all([
-      client.query('select * from travelers order by sort_order asc'),
-      client.query('select * from places order by created_at desc, name asc'),
-      client.query('select * from hotels order by check_in asc, name asc'),
-      client.query('select * from tickets order by depart_at asc, from_city asc'),
-      client.query('select * from days order by date asc'),
-      client.query('select * from place_sections order by sort_order asc, title asc'),
-      client.query('select * from day_items order by day_id asc, sort_order asc'),
-      client.query('select * from expenses order by spent_at desc, created_at desc'),
-      client.query('select * from expense_shares order by expense_id asc'),
-      client.query('select * from expense_splits order by expense_id asc, traveler_id asc'),
-      client.query('select * from payments order by created_at desc'),
-      client.query('select * from checklists order by title asc'),
-      client.query(
-        'select * from checklist_items order by checklist_id asc, sort_order asc',
-      ),
-      client.query('select * from settings where id = 1'),
-    ])
+    const travelers = await client.query('select * from travelers order by sort_order asc')
+    const places = await client.query('select * from places order by created_at desc, name asc')
+    const hotels = await client.query('select * from hotels order by check_in asc, name asc')
+    const tickets = await client.query('select * from tickets order by depart_at asc, from_city asc')
+    const days = await client.query('select * from days order by date asc')
+    const placeSections = await client.query('select * from place_sections order by sort_order asc, title asc')
+    const dayItems = await client.query('select * from day_items order by day_id asc, sort_order asc')
+    const expenses = await client.query('select * from expenses order by spent_at desc, created_at desc')
+    const expenseShares = await client.query('select * from expense_shares order by expense_id asc')
+    const expenseSplits = await client.query('select * from expense_splits order by expense_id asc, traveler_id asc')
+    const payments = await client.query('select * from payments order by created_at desc')
+    const checklists = await client.query('select * from checklists order by title asc')
+    const checklistItems = await client.query(
+      'select * from checklist_items order by checklist_id asc, sort_order asc',
+    )
+    const settings = await client.query('select * from settings where id = 1')
 
     if (days.rowCount === 0) {
       const seed = createSeedTripState()

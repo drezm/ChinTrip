@@ -28,6 +28,16 @@ export function CurrencyCalculator({ settings }: { settings: Settings }) {
     return roundMoney(value / settings.cnyToRubRate)
   }, [amount, fromCurrency, settings.cnyToRubRate, toCurrency])
 
+  function updateFromCurrency(currency: Currency) {
+    setFromCurrency(currency)
+    if (currency === toCurrency) setToCurrency(oppositeCurrency(currency))
+  }
+
+  function updateToCurrency(currency: Currency) {
+    setToCurrency(currency)
+    if (currency === fromCurrency) setFromCurrency(oppositeCurrency(currency))
+  }
+
   function swapCurrencies() {
     setFromCurrency(toCurrency)
     setToCurrency(fromCurrency)
@@ -52,10 +62,14 @@ export function CurrencyCalculator({ settings }: { settings: Settings }) {
               <SelectField
                 name="fromCurrency"
                 value={fromCurrency}
-                onChange={(event) => setFromCurrency(event.currentTarget.value as Currency)}
+                onChange={(event) => updateFromCurrency(event.currentTarget.value as Currency)}
               >
-                <option value="CNY">CNY</option>
-                <option value="RUB">RUB</option>
+                <option value="CNY" disabled={toCurrency === 'CNY'}>
+                  CNY
+                </option>
+                <option value="RUB" disabled={toCurrency === 'RUB'}>
+                  RUB
+                </option>
               </SelectField>
             </Field>
             <Button
@@ -71,10 +85,14 @@ export function CurrencyCalculator({ settings }: { settings: Settings }) {
               <SelectField
                 name="toCurrency"
                 value={toCurrency}
-                onChange={(event) => setToCurrency(event.currentTarget.value as Currency)}
+                onChange={(event) => updateToCurrency(event.currentTarget.value as Currency)}
               >
-                <option value="RUB">RUB</option>
-                <option value="CNY">CNY</option>
+                <option value="RUB" disabled={fromCurrency === 'RUB'}>
+                  RUB
+                </option>
+                <option value="CNY" disabled={fromCurrency === 'CNY'}>
+                  CNY
+                </option>
               </SelectField>
             </Field>
           </div>
@@ -104,4 +122,8 @@ export function CurrencyCalculator({ settings }: { settings: Settings }) {
       </EntityModal>
     </>
   )
+}
+
+function oppositeCurrency(currency: Currency): Currency {
+  return currency === 'CNY' ? 'RUB' : 'CNY'
 }

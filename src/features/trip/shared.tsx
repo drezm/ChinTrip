@@ -271,6 +271,8 @@ export function PhotoGallery({ value }: { value: string }) {
 }
 
 export function DocumentPreview({ value }: { value: string }) {
+  const [activeImage, setActiveImage] = useState<string | null>(null)
+
   if (!value) {
     return (
       <div className="grid aspect-[4/3] place-items-center rounded-2xl bg-muted text-muted-foreground">
@@ -280,14 +282,15 @@ export function DocumentPreview({ value }: { value: string }) {
   }
 
   const normalized = normalizeUrl(value)
+  const image = isImageLike(value) ? value : ''
   const content = isPdf(value) ? (
     <iframe
-      className="size-full rounded-2xl border-0"
+      className="pointer-events-none size-full rounded-2xl border-0"
       title="PDF"
       src={value}
       loading="lazy"
     />
-  ) : isImageLike(value) ? (
+  ) : image ? (
     <img className="size-full object-cover" src={value} alt="" loading="lazy" />
   ) : (
     <div className="grid size-full place-items-center bg-muted text-muted-foreground">
@@ -296,19 +299,30 @@ export function DocumentPreview({ value }: { value: string }) {
   )
 
   return (
-    <button
-      type="button"
-      className="aspect-[4/3] w-full overflow-hidden rounded-2xl bg-muted text-left"
-      onClick={() => openDocument(value)}
-      aria-label="Открыть документ"
-    >
-      {content}
-      {!normalized && !isEmbedded(value) ? (
-        <span className="block truncate p-3 text-sm text-muted-foreground">
-          {value}
-        </span>
+    <>
+      <button
+        type="button"
+        className="aspect-[4/3] w-full overflow-hidden rounded-2xl bg-muted text-left"
+        onClick={() => {
+          if (image) {
+            setActiveImage(image)
+          } else {
+            openDocument(value)
+          }
+        }}
+        aria-label={image ? 'Открыть фото документа' : 'Открыть документ'}
+      >
+        {content}
+        {!normalized && !isEmbedded(value) ? (
+          <span className="block truncate p-3 text-sm text-muted-foreground">
+            {value}
+          </span>
+        ) : null}
+      </button>
+      {activeImage ? (
+        <MediaLightbox src={activeImage} onClose={() => setActiveImage(null)} />
       ) : null}
-    </button>
+    </>
   )
 }
 
@@ -625,8 +639,12 @@ export function openDocument(value: string) {
   if (isEmbedded(value)) {
     const page = window.open('', '_blank', 'noopener,noreferrer')
     if (!page) return
+    const body =
+      isImageLike(value)
+        ? `<img src="${value}" alt="" style="max-width:100vw;max-height:100vh;object-fit:contain" />`
+        : `<iframe src="${value}" style="border:0;width:100vw;height:100vh"></iframe>`
     page.document.write(
-      `<html><head><title>China Trip document</title><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;background:#111;display:grid;place-items:center;min-height:100vh"><iframe src="${value}" style="border:0;width:100vw;height:100vh"></iframe></body></html>`,
+      `<html><head><title>China Trip document</title><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;background:#111;display:grid;place-items:center;min-height:100vh">${body}</body></html>`,
     )
     page.document.close()
     return
@@ -787,7 +805,7 @@ export function StatusBadge({ saved }: { saved: boolean }) {
 }
 
 export function formGridClass() {
-  return 'grid gap-3 md:grid-cols-2'
+  return 'grid min-w-0 gap-3 md:grid-cols-2'
 }
 
 export {

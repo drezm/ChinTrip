@@ -71,9 +71,32 @@ function ServiceWorkerRegistration() {
       return
     }
 
-    navigator.serviceWorker.register('/sw.js').catch(() => {
-      // The app still works normally if the browser declines registration.
+    let refreshing = false
+    const shouldReloadOnControllerChange = Boolean(navigator.serviceWorker.controller)
+
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!shouldReloadOnControllerChange || refreshing) return
+      refreshing = true
+      window.location.reload()
     })
+
+    navigator.serviceWorker
+      .register('/sw.js', { updateViaCache: 'none' })
+      .then((registration) => {
+        void registration.update()
+        registration.addEventListener('updatefound', () => {
+          const worker = registration.installing
+          if (!worker) return
+          worker.addEventListener('statechange', () => {
+            if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+              window.location.reload()
+            }
+          })
+        })
+      })
+      .catch(() => {
+        // The app still works normally if the browser declines registration.
+      })
   }, [])
 
   return null

@@ -6,7 +6,6 @@ import {
   Badge,
   Card,
   CardContent,
-  PageHeader,
   RouteEntityCard,
   formatShortDate,
   formatWeekday,
@@ -38,22 +37,29 @@ export function TodayView({
     .slice(0, 6)
 
   return (
-    <section className="grid gap-4">
-      <PageHeader
-        eyebrow={activeDay?.date === today ? 'Сегодня' : 'Ближайший день'}
-        title={activeDay ? activeDay.city : 'План поездки'}
-        aside={activeDay ? <Badge>{formatWeekday(activeDay.date)}</Badge> : null}
-      />
-
-      <Card>
-        <CardContent className="grid grid-cols-3 gap-2 p-3">
-          <TimeStat label="Дата" value={formatShortDate(activeDay?.date ?? today)} />
-          <TimeStat label="МСК" value={formatZonedTime('Europe/Moscow')} />
-          <TimeStat label="Гуанчжоу" value={formatZonedTime('Asia/Shanghai')} />
+    <section className="grid gap-3">
+      <Card className="overflow-hidden border-primary/15 bg-[linear-gradient(135deg,color-mix(in_oklch,var(--primary),transparent_88%),var(--card)_58%)]">
+        <CardContent className="grid gap-3 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wide text-destructive">
+                {activeDay?.date === today ? 'Сегодня' : 'Ближайший день'}
+              </p>
+              <h2 className="mt-1 truncate text-2xl font-semibold tracking-tight">
+                {activeDay ? activeDay.city : 'План поездки'}
+              </h2>
+            </div>
+            {activeDay ? <Badge>{formatWeekday(activeDay.date)}</Badge> : null}
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <TimeStat label="Дата" value={formatShortDate(activeDay?.date ?? today)} />
+            <TimeStat label="МСК" value={formatZonedTime('Europe/Moscow')} />
+            <TimeStat label="Гуанчжоу" value={formatZonedTime('Asia/Shanghai')} />
+          </div>
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.8fr)]">
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.8fr)]">
         <Card>
           <CardContent className="grid gap-3 pt-4">
             <div className="flex items-center justify-between gap-2">
@@ -164,7 +170,7 @@ export function TodayView({
 
 function TimeStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-0 rounded-2xl bg-muted/60 px-3 py-2">
+    <div className="min-w-0 rounded-2xl bg-background/75 px-3 py-2 shadow-xs">
       <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
         <Clock className="size-3.5 shrink-0" />
         <span className="truncate">{label}</span>

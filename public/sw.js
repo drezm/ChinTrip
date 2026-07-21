@@ -1,4 +1,4 @@
-const CACHE_NAME = 'china-trip-v4'
+const CACHE_NAME = 'china-trip-v5'
 const APP_SHELL = [
   '/manifest.webmanifest',
   '/icon-192.svg',
@@ -20,14 +20,22 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) =>
-        Promise.all(
-          keys
-            .filter((key) => key !== CACHE_NAME)
-            .map((key) => caches.delete(key)),
-        ),
-      )
-      .then(() => self.clients.claim()),
+      .then(async (keys) => {
+        const oldCacheKeys = keys.filter((key) => key !== CACHE_NAME)
+        await Promise.all(oldCacheKeys.map((key) => caches.delete(key)))
+        await self.clients.claim()
+        if (!oldCacheKeys.length) return
+        const clients = await self.clients.matchAll({
+          type: 'window',
+          includeUncontrolled: true,
+        })
+        await Promise.all(
+          clients.map((client) => {
+            if (!client.url) return undefined
+            return client.navigate(client.url)
+          }),
+        )
+      }),
   )
 })
 
@@ -42,7 +50,12 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  if (['script', 'style', 'image', 'font', 'manifest'].includes(request.destination)) {
+  if (['script', 'style'].includes(request.destination)) {
+    event.respondWith(networkFirst(request))
+    return
+  }
+
+  if (['image', 'font', 'manifest'].includes(request.destination)) {
     event.respondWith(cacheFirst(request))
   }
 })
