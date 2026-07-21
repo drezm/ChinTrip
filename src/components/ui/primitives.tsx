@@ -6,7 +6,7 @@ export function Card({ className, ...props }: ComponentProps<'section'>) {
   return (
     <section
       className={cn(
-        'rounded-2xl border border-border bg-card text-card-foreground shadow-sm',
+        'w-full min-w-0 max-w-full rounded-2xl border border-border bg-card text-card-foreground shadow-sm',
         className,
       )}
       {...props}
@@ -15,18 +15,18 @@ export function Card({ className, ...props }: ComponentProps<'section'>) {
 }
 
 export function CardHeader({ className, ...props }: ComponentProps<'div'>) {
-  return <div className={cn('grid gap-1.5 p-4', className)} {...props} />
+  return <div className={cn('grid min-w-0 max-w-full gap-1.5 p-4', className)} {...props} />
 }
 
 export function CardContent({ className, ...props }: ComponentProps<'div'>) {
-  return <div className={cn('p-4 pt-0', className)} {...props} />
+  return <div className={cn('min-w-0 max-w-full p-4 pt-0', className)} {...props} />
 }
 
 export function Badge({ className, ...props }: ComponentProps<'span'>) {
   return (
     <span
       className={cn(
-        'inline-flex h-7 items-center gap-1 rounded-full border border-border bg-secondary px-2.5 text-xs font-medium text-secondary-foreground',
+        'inline-flex h-7 min-w-0 max-w-full items-center gap-1 rounded-full border border-border bg-secondary px-2.5 text-xs font-medium text-secondary-foreground',
         className,
       )}
       {...props}

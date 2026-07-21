@@ -38,7 +38,7 @@ export function RouteView({ state, mutate }: FeatureProps) {
   const days = sortedDays(state.days)
 
   return (
-    <section className="grid gap-4">
+    <section className="grid w-full min-w-0 max-w-full gap-4 overflow-x-clip">
       <PageHeader
         eyebrow="Маршрут"
         title="Дни поездки"
@@ -58,14 +58,14 @@ export function RouteView({ state, mutate }: FeatureProps) {
           return (
             <Card key={day.id} className="overflow-hidden">
               <CardContent className="grid gap-3 pt-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex min-w-0 gap-3">
+                <div className="flex min-w-0 items-start justify-between gap-3">
+                  <div className="flex min-w-0 flex-1 gap-3">
                     <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-primary text-primary-foreground">
                       <span className="text-sm font-semibold">{index + 1}</span>
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <h3 className="truncate text-lg font-semibold">{day.city}</h3>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="truncate text-sm text-muted-foreground">
                         {formatShortDate(day.date)} · {formatWeekday(day.date)}
                       </p>
                     </div>
@@ -94,7 +94,7 @@ export function RouteView({ state, mutate }: FeatureProps) {
                   />
                 </div>
                 {day.note ? (
-                  <p className="rounded-2xl bg-muted/60 p-3 text-sm leading-6 text-muted-foreground">
+                  <p className="break-words rounded-2xl bg-muted/60 p-3 text-sm leading-6 text-muted-foreground [overflow-wrap:anywhere]">
                     {day.note}
                   </p>
                 ) : null}
@@ -253,7 +253,7 @@ function NoteForm({
 }) {
   return (
     <form
-      className="flex gap-2"
+      className="flex min-w-0 flex-col gap-2 sm:flex-row"
       onSubmit={(event) => {
         event.preventDefault()
         const data = new FormData(event.currentTarget)
@@ -263,8 +263,8 @@ function NoteForm({
         event.currentTarget.reset()
       }}
     >
-      <Input name="note" placeholder="Заметка к дню" />
-      <Button type="submit" size="icon-lg" aria-label={`Добавить заметку ${dayId}`}>
+      <Input className="min-w-0 flex-1" name="note" placeholder="Заметка к дню" />
+      <Button className="shrink-0" type="submit" size="icon-lg" aria-label={`Добавить заметку ${dayId}`}>
         <Plus />
       </Button>
     </form>

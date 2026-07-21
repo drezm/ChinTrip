@@ -31,7 +31,7 @@ export function SettingsView({
   const [refreshing, setRefreshing] = useState(false)
 
   return (
-    <section className="grid gap-4">
+    <section className="grid w-full min-w-0 max-w-full gap-4 overflow-x-clip">
       <PageHeader
         eyebrow="Настройки"
         title="Поездка"
@@ -40,9 +40,10 @@ export function SettingsView({
       <Card>
         <CardContent className="grid gap-3 pt-4">
           <h3 className="text-lg font-semibold">Я сейчас</h3>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid min-w-0 grid-cols-[repeat(3,minmax(0,1fr))] gap-2">
             {state.travelers.map((traveler) => (
               <Button
+                className="min-w-0"
                 key={traveler.id}
                 variant={currentTravelerId === traveler.id ? 'default' : 'secondary'}
                 type="button"
@@ -100,7 +101,7 @@ export function SettingsView({
               <Button type="submit">Сохранить</Button>
             </div>
           </form>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex min-w-0 flex-wrap gap-2">
             <Button
               variant="outline"
               type="button"
@@ -122,7 +123,7 @@ export function SettingsView({
               Заблокировать
             </Button>
           </div>
-          <p className="text-sm text-muted-foreground">
+          <p className="break-words text-sm text-muted-foreground [overflow-wrap:anywhere]">
             Если сети нет, конвертер и новые расходы используют последний сохранённый курс.
           </p>
         </CardContent>

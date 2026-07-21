@@ -37,11 +37,11 @@ export function TodayView({
     .slice(0, 6)
 
   return (
-    <section className="grid gap-3">
+    <section className="grid w-full min-w-0 max-w-full gap-3 overflow-x-clip">
       <Card className="overflow-hidden border-primary/15 bg-[linear-gradient(135deg,color-mix(in_oklch,var(--primary),transparent_88%),var(--card)_58%)]">
         <CardContent className="grid gap-3 p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
+          <div className="flex min-w-0 items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold uppercase tracking-wide text-destructive">
                 {activeDay?.date === today ? 'Сегодня' : 'Ближайший день'}
               </p>
@@ -51,7 +51,7 @@ export function TodayView({
             </div>
             {activeDay ? <Badge>{formatWeekday(activeDay.date)}</Badge> : null}
           </div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid min-w-0 grid-cols-[repeat(3,minmax(0,1fr))] gap-2">
             <TimeStat label="Дата" value={formatShortDate(activeDay?.date ?? today)} />
             <TimeStat label="МСК" value={formatZonedTime('Europe/Moscow')} />
             <TimeStat label="Гуанчжоу" value={formatZonedTime('Asia/Shanghai')} />
@@ -59,18 +59,18 @@ export function TodayView({
         </CardContent>
       </Card>
 
-      <div className="grid gap-3 md:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.8fr)]">
+      <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.8fr)]">
         <Card>
           <CardContent className="grid gap-3 pt-4">
-            <div className="flex items-center justify-between gap-2">
-              <div>
+            <div className="flex min-w-0 items-center justify-between gap-2">
+              <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold uppercase text-destructive">План</p>
                 <h3 className="text-lg font-semibold">На день</h3>
               </div>
-              <MapPin className="size-5 text-muted-foreground" />
+              <MapPin className="size-5 shrink-0 text-muted-foreground" />
             </div>
             {activeDay?.note ? (
-              <p className="rounded-2xl bg-muted p-3 text-sm leading-6 text-muted-foreground">
+              <p className="break-words rounded-2xl bg-muted p-3 text-sm leading-6 text-muted-foreground [overflow-wrap:anywhere]">
                 {activeDay.note}
               </p>
             ) : null}
@@ -91,17 +91,19 @@ export function TodayView({
         <div className="grid content-start gap-4">
           <Card>
             <CardContent className="grid gap-3 pt-4">
-              <div className="flex items-center justify-between gap-2">
-                <div>
+              <div className="flex min-w-0 items-center justify-between gap-2">
+                <div className="min-w-0 flex-1">
                   <p className="text-xs font-semibold uppercase text-destructive">База</p>
                   <h3 className="text-lg font-semibold">Отель</h3>
                 </div>
-                <Hotel className="size-5 text-muted-foreground" />
+                <Hotel className="size-5 shrink-0 text-muted-foreground" />
               </div>
               {currentHotel ? (
-                <div className="grid gap-1">
-                  <strong>{currentHotel.name}</strong>
-                  <span className="text-sm text-muted-foreground">
+                <div className="grid min-w-0 gap-1">
+                  <strong className="break-words [overflow-wrap:anywhere]">
+                    {currentHotel.name}
+                  </strong>
+                  <span className="break-words text-sm text-muted-foreground [overflow-wrap:anywhere]">
                     {currentHotel.city} · {currentHotel.address || 'адрес не указан'}
                   </span>
                 </div>
@@ -113,22 +115,22 @@ export function TodayView({
 
           <Card>
             <CardContent className="grid gap-3 pt-4">
-              <div className="flex items-center justify-between gap-2">
-                <div>
+              <div className="flex min-w-0 items-center justify-between gap-2">
+                <div className="min-w-0 flex-1">
                   <p className="text-xs font-semibold uppercase text-destructive">Чеклист</p>
                   <h3 className="text-lg font-semibold">Открытые дела</h3>
                 </div>
-                <CheckSquare className="size-5 text-muted-foreground" />
+                <CheckSquare className="size-5 shrink-0 text-muted-foreground" />
               </div>
               <div className="grid gap-2">
                 {openChecklistItems.length ? (
                   openChecklistItems.map((item) => (
                     <label
-                      className="flex min-h-11 items-center gap-3 rounded-2xl bg-muted/60 px-3 text-sm"
+                      className="flex min-h-11 min-w-0 items-center gap-3 rounded-2xl bg-muted/60 px-3 text-sm"
                       key={item.id}
                     >
                       <input
-                        className="size-4 accent-primary"
+                        className="size-4 shrink-0 accent-primary"
                         type="checkbox"
                         checked={item.done}
                         onChange={(event) => {
@@ -153,7 +155,9 @@ export function TodayView({
                           )
                         }}
                       />
-                      <span>{item.text}</span>
+                      <span className="min-w-0 break-words [overflow-wrap:anywhere]">
+                        {item.text}
+                      </span>
                     </label>
                   ))
                 ) : (

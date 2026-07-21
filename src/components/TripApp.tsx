@@ -79,6 +79,8 @@ export function TripApp({ initialState }: TripAppProps) {
     applyTheme(state.settings.theme)
   }, [state.settings.theme])
 
+  useVisualViewportKeyboard()
+
   async function mutate(
     label: string,
     request: Promise<unknown>,
@@ -147,9 +149,9 @@ export function TripApp({ initialState }: TripAppProps) {
   }, [activeTab, state, currentTravelerId])
 
   return (
-    <div className="min-h-svh bg-background text-foreground">
+    <div className="min-h-svh w-full min-w-0 max-w-full overflow-x-clip bg-background text-foreground">
       <Toaster richColors position="top-center" closeButton />
-      <div className="mx-auto grid min-h-svh w-full max-w-6xl md:grid-cols-[240px_minmax(0,1fr)]">
+      <div className="mx-auto grid min-h-svh w-full min-w-0 max-w-6xl overflow-x-clip md:grid-cols-[240px_minmax(0,1fr)]">
         <aside className="sticky top-0 hidden h-svh border-r border-border bg-sidebar px-3 py-4 text-sidebar-foreground md:grid md:grid-rows-[auto_1fr_auto]">
           <TripIdentity />
           <nav className="mt-6 grid content-start gap-1" aria-label="Основные разделы">
@@ -176,11 +178,11 @@ export function TripApp({ initialState }: TripAppProps) {
           </div>
         </aside>
 
-        <div className="grid min-w-0 grid-rows-[auto_1fr]">
+        <div className="grid min-w-0 max-w-full grid-rows-[auto_1fr] overflow-x-clip">
           <header className="sticky top-0 z-30 border-b border-border bg-background/90 px-4 pb-3 pt-[calc(12px+env(safe-area-inset-top))] backdrop-blur md:px-6">
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-start justify-between gap-3">
               <TripIdentity compact />
-              <div className="flex items-center gap-2">
+              <div className="flex shrink-0 items-center gap-2">
                 <StatusBadgeMini saveStatus={saveStatus} isOnline={isOnline} />
                 <Button variant="outline" size="icon" type="button" onClick={handleThemeToggle}>
                   {state.settings.theme === 'dark' ? <Sun /> : <Moon />}
@@ -189,14 +191,14 @@ export function TripApp({ initialState }: TripAppProps) {
             </div>
           </header>
 
-          <main className="min-w-0 px-4 py-4 pb-[calc(92px+env(safe-area-inset-bottom))] md:px-6 md:pb-8">
+          <main className="w-full min-w-0 max-w-full overflow-x-clip px-4 py-4 pb-[var(--mobile-bottom-content-padding)] md:px-6 md:pb-8">
             {activeView}
           </main>
         </div>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-3 pb-[calc(8px+env(safe-area-inset-bottom))] pt-2 backdrop-blur md:hidden">
-        <div className="mx-auto grid max-w-md grid-cols-5 gap-1">
+      <nav className="mobile-bottom-nav fixed inset-x-0 bottom-0 z-40 w-full max-w-full border-t border-border bg-background/95 px-3 pb-[calc(8px+env(safe-area-inset-bottom))] pt-2 backdrop-blur transition duration-150 md:hidden">
+        <div className="mx-auto grid w-full max-w-md grid-cols-5 gap-1">
           {navItems.map((item) => (
             <button
               key={item.id}
@@ -357,4 +359,110 @@ function parseErrorMessage(error: unknown) {
 function isStaleServerFunctionError(error: unknown) {
   if (!(error instanceof Error)) return false
   return /server function info not found/i.test(error.message)
+}
+
+function useVisualViewportKeyboard() {
+  useEffect(() => {
+    const root = document.documentElement
+    const body = document.body
+    const visualViewport = window.visualViewport
+    let frame = 0
+    let timer: number | undefined
+
+    function isEditableElement(element: Element | null): element is HTMLElement {
+      if (!(element instanceof HTMLElement)) return false
+      return element.matches('input, textarea, select, [contenteditable="true"]')
+    }
+
+    function findScrollableParent(element: HTMLElement) {
+      let parent = element.parentElement
+      while (parent && parent !== document.body) {
+        const style = window.getComputedStyle(parent)
+        const canScrollY =
+          /(auto|scroll)/.test(style.overflowY) && parent.scrollHeight > parent.clientHeight
+        if (canScrollY) return parent
+        parent = parent.parentElement
+      }
+      return null
+    }
+
+    function scrollActiveFieldBy(activeElement: HTMLElement, delta: number) {
+      const scrollParent = findScrollableParent(activeElement)
+      if (scrollParent) {
+        scrollParent.scrollTop += delta
+        return
+      }
+      window.scrollBy({ top: delta, behavior: 'smooth' })
+    }
+
+    function ensureActiveFieldVisible(
+      activeElement: HTMLElement,
+      visibleHeight: number,
+      viewportOffsetTop: number,
+    ) {
+      const rect = activeElement.getBoundingClientRect()
+      const topPadding = viewportOffsetTop + 16
+      const visibleBottom = viewportOffsetTop + visibleHeight
+      const bottomPadding = 24
+      if (rect.bottom > visibleBottom - bottomPadding) {
+        scrollActiveFieldBy(activeElement, rect.bottom - visibleBottom + bottomPadding)
+      } else if (rect.top < topPadding) {
+        scrollActiveFieldBy(activeElement, rect.top - topPadding)
+      }
+    }
+
+    function updateViewportState() {
+      if (frame) window.cancelAnimationFrame(frame)
+      frame = window.requestAnimationFrame(() => {
+        const viewportHeight = visualViewport?.height ?? window.innerHeight
+        const viewportOffsetTop = visualViewport?.offsetTop ?? 0
+        const keyboardInset = Math.max(
+          0,
+          window.innerHeight - viewportHeight - viewportOffsetTop,
+        )
+        const activeElement = document.activeElement
+        const keyboardOpen = isEditableElement(activeElement) && keyboardInset > 80
+
+        root.style.setProperty('--visual-viewport-height', `${Math.round(viewportHeight)}px`)
+        root.style.setProperty(
+          '--keyboard-inset',
+          `${Math.round(keyboardOpen ? keyboardInset : 0)}px`,
+        )
+        body.classList.toggle('keyboard-open', keyboardOpen)
+
+        if (keyboardOpen) ensureActiveFieldVisible(activeElement, viewportHeight, viewportOffsetTop)
+      })
+    }
+
+    function scheduleViewportUpdate(delay = 80) {
+      updateViewportState()
+      if (timer) window.clearTimeout(timer)
+      timer = window.setTimeout(updateViewportState, delay)
+    }
+
+    const handleViewportChange = () => scheduleViewportUpdate()
+    const handleFocusOut = () => scheduleViewportUpdate(180)
+
+    updateViewportState()
+    window.addEventListener('resize', handleViewportChange)
+    window.addEventListener('orientationchange', handleViewportChange)
+    window.addEventListener('focusin', handleViewportChange)
+    window.addEventListener('focusout', handleFocusOut)
+    visualViewport?.addEventListener('resize', handleViewportChange)
+    visualViewport?.addEventListener('scroll', handleViewportChange)
+
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame)
+      if (timer) window.clearTimeout(timer)
+      window.removeEventListener('resize', handleViewportChange)
+      window.removeEventListener('orientationchange', handleViewportChange)
+      window.removeEventListener('focusin', handleViewportChange)
+      window.removeEventListener('focusout', handleFocusOut)
+      visualViewport?.removeEventListener('resize', handleViewportChange)
+      visualViewport?.removeEventListener('scroll', handleViewportChange)
+      body.classList.remove('keyboard-open')
+      root.style.removeProperty('--keyboard-inset')
+      root.style.removeProperty('--visual-viewport-height')
+    }
+  }, [])
 }

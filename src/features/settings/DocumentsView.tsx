@@ -79,7 +79,7 @@ export function DocumentsView({
   }
 
   return (
-    <section className="grid gap-4">
+    <section className="grid w-full min-w-0 max-w-full gap-4 overflow-x-clip">
       <PageHeader
         eyebrow="QR и файлы"
         title="Документы"
@@ -90,7 +90,7 @@ export function DocumentsView({
           </Button>
         }
       />
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-3">
         {state.hotels.map((hotel) => (
           <DocumentCard
             key={`hotel-${hotel.id}`}

@@ -71,7 +71,7 @@ export function MoneyView({ state, currentTravelerId, mutate }: FeatureProps) {
   const totalCny = state.expenses.reduce((sum, expense) => sum + expense.amountCny, 0)
 
   return (
-    <section className="grid gap-4">
+    <section className="grid w-full min-w-0 max-w-full gap-4 overflow-x-clip">
       <PageHeader
         eyebrow="Деньги"
         title="Расходы и долги"
@@ -83,7 +83,7 @@ export function MoneyView({ state, currentTravelerId, mutate }: FeatureProps) {
         }
       />
 
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid min-w-0 gap-3 md:grid-cols-3">
         {balances.map((balance) => (
           <Card key={balance.travelerId}>
             <CardContent className="grid gap-2 pt-4">
@@ -109,12 +109,12 @@ export function MoneyView({ state, currentTravelerId, mutate }: FeatureProps) {
 
       <Card>
         <CardContent className="grid gap-3 pt-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
+          <div className="flex min-w-0 items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold uppercase text-destructive">Кто кому</p>
               <h3 className="text-lg font-semibold">Оптимальные переводы</h3>
             </div>
-            <Button variant="outline" type="button" onClick={() => setIsCreatingPayment(true)}>
+            <Button className="shrink-0" variant="outline" type="button" onClick={() => setIsCreatingPayment(true)}>
               <CreditCard />
               Платёж
             </Button>
@@ -123,15 +123,15 @@ export function MoneyView({ state, currentTravelerId, mutate }: FeatureProps) {
             {settlements.length ? (
               settlements.map((settlement) => (
                 <div
-                  className="grid gap-2 rounded-2xl bg-muted/60 p-3 md:grid-cols-[1fr_auto]"
+                  className="grid min-w-0 gap-2 rounded-2xl bg-muted/60 p-3 md:grid-cols-[minmax(0,1fr)_auto]"
                   key={`${settlement.fromId}-${settlement.toId}`}
                 >
-                  <div className="flex items-center gap-2 text-sm">
-                    <strong>{getTravelerName(state.travelers, settlement.fromId)}</strong>
+                  <div className="flex min-w-0 items-center gap-2 text-sm">
+                    <strong className="min-w-0 truncate">{getTravelerName(state.travelers, settlement.fromId)}</strong>
                     <ArrowRight className="size-4 text-muted-foreground" />
-                    <strong>{getTravelerName(state.travelers, settlement.toId)}</strong>
+                    <strong className="min-w-0 truncate">{getTravelerName(state.travelers, settlement.toId)}</strong>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex min-w-0 flex-wrap gap-2">
                     <Badge>
                       {formatTripMoney(
                         settlement.amountCny,
@@ -175,7 +175,7 @@ export function MoneyView({ state, currentTravelerId, mutate }: FeatureProps) {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="grid gap-3">
           {state.expenses.map((expense) => {
             const splits = state.expenseSplits.filter(
@@ -184,13 +184,13 @@ export function MoneyView({ state, currentTravelerId, mutate }: FeatureProps) {
             return (
               <Card key={expense.id}>
                 <CardContent className="grid gap-3 pt-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
+                  <div className="flex min-w-0 items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
                       <Badge className="mb-2">{expense.category}</Badge>
-                      <h3 className="truncate text-lg font-semibold">
+                      <h3 className="line-clamp-2 break-words text-lg font-semibold leading-6 [overflow-wrap:anywhere]">
                         {expense.description}
                       </h3>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="break-words text-sm text-muted-foreground [overflow-wrap:anywhere]">
                         {formatShortDate(expense.spentAt)} · оплатил{' '}
                         {getTravelerName(state.travelers, expense.payerId)}
                       </p>
@@ -215,7 +215,7 @@ export function MoneyView({ state, currentTravelerId, mutate }: FeatureProps) {
                       }
                     />
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex min-w-0 flex-wrap gap-2">
                     <Badge>{formatRawMoney(expense.amount, expense.currency)}</Badge>
                     <Badge>
                       {formatRawMoney(expense.amountCny, 'CNY')} · курс{' '}
@@ -223,9 +223,9 @@ export function MoneyView({ state, currentTravelerId, mutate }: FeatureProps) {
                     </Badge>
                     <Badge>{splitTypeLabel(expense.splitType)}</Badge>
                   </div>
-                  <div className="grid gap-1 text-sm text-muted-foreground">
+                  <div className="grid min-w-0 gap-1 text-sm text-muted-foreground">
                     {splits.map((split) => (
-                      <span key={split.id}>
+                      <span className="break-words [overflow-wrap:anywhere]" key={split.id}>
                         {getTravelerName(state.travelers, split.travelerId)}:{' '}
                         {formatRawMoney(split.amountCny, 'CNY')}
                       </span>
@@ -516,7 +516,7 @@ function ExpenseForm({
         </SelectField>
       </Field>
       <Field className="md:col-span-2" label="Способ разделения">
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-3">
           {(['equal', 'exact', 'percentage'] as ExpenseSplitType[]).map((type) => (
             <Button
               key={type}
@@ -532,11 +532,11 @@ function ExpenseForm({
       <div className="grid gap-2 md:col-span-2">
         {participants.map((participant) => (
           <label
-            className="grid grid-cols-[auto_1fr_120px] items-center gap-2 rounded-2xl bg-muted/60 p-2 text-sm"
+            className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_minmax(88px,120px)] items-center gap-2 rounded-2xl bg-muted/60 p-2 text-sm"
             key={participant.travelerId}
           >
             <input
-              className="size-4 accent-primary"
+              className="size-4 shrink-0 accent-primary"
               type="checkbox"
               checked={participant.checked}
               onChange={(event) =>
@@ -549,7 +549,9 @@ function ExpenseForm({
                 )
               }
             />
-            <span>{getTravelerName(state.travelers, participant.travelerId)}</span>
+            <span className="min-w-0 truncate">
+              {getTravelerName(state.travelers, participant.travelerId)}
+            </span>
             <Input
               className={splitType === 'equal' ? 'opacity-50' : ''}
               disabled={splitType === 'equal' || !participant.checked}
@@ -569,16 +571,16 @@ function ExpenseForm({
           </label>
         ))}
       </div>
-      <div className="grid gap-2 rounded-2xl bg-muted p-3 text-sm md:col-span-2">
-        <strong>
+      <div className="grid min-w-0 gap-2 rounded-2xl bg-muted p-3 text-sm md:col-span-2">
+        <strong className="break-words [overflow-wrap:anywhere]">
           {getSplitProgressMessage(amountCny, splitType, selected)}
         </strong>
-        <span className="text-muted-foreground">
+        <span className="break-words text-muted-foreground [overflow-wrap:anywhere]">
           Эквивалент: {formatRawMoney(amountCny, 'CNY')}. Текущий общий курс:{' '}
           {formatPlainMoney(state.settings.cnyToRubRate)} RUB.
         </span>
         {preview.length ? (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex min-w-0 flex-wrap gap-2">
             {preview.map((split) => (
               <Badge key={split.travelerId}>
                 {getTravelerName(state.travelers, split.travelerId)} ·{' '}
@@ -673,12 +675,12 @@ function PaymentRow({
 }) {
   return (
     <div className="grid gap-2 rounded-2xl bg-muted/60 p-3 text-sm">
-      <div className="flex items-center gap-2">
-        <strong>{getTravelerName(state.travelers, payment.fromTravelerId)}</strong>
+      <div className="flex min-w-0 items-center gap-2">
+        <strong className="min-w-0 truncate">{getTravelerName(state.travelers, payment.fromTravelerId)}</strong>
         <ArrowRight className="size-4 text-muted-foreground" />
-        <strong>{getTravelerName(state.travelers, payment.toTravelerId)}</strong>
+        <strong className="min-w-0 truncate">{getTravelerName(state.travelers, payment.toTravelerId)}</strong>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
         <Badge>{formatRawMoney(payment.amount, payment.currency)}</Badge>
         <Badge>{payment.status === 'completed' ? 'оплачен' : 'ожидает'}</Badge>
         <Button variant="outline" size="sm" type="button" onClick={onToggle}>
@@ -687,7 +689,11 @@ function PaymentRow({
         </Button>
         <DeleteButton title="Удалить платёж" onConfirm={onDelete} />
       </div>
-      {payment.note ? <p className="text-muted-foreground">{payment.note}</p> : null}
+      {payment.note ? (
+        <p className="break-words text-muted-foreground [overflow-wrap:anywhere]">
+          {payment.note}
+        </p>
+      ) : null}
     </div>
   )
 }

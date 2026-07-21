@@ -40,23 +40,23 @@ export function MoreView({
   const [section, setSection] = useState<MoreSection>('documents')
 
   return (
-    <section className="grid gap-4">
+    <section className="grid w-full min-w-0 max-w-full gap-4 overflow-x-clip">
       <PageHeader eyebrow="Ещё" title="Дополнительно" />
-      <div className="flex snap-x gap-2 overflow-x-auto pb-1">
+      <div className="flex w-full min-w-0 max-w-full snap-x gap-2 overflow-x-auto pb-1">
         {moreSections.map((item) => (
           <button
             key={item.id}
             type="button"
             aria-pressed={section === item.id}
-            className={`flex h-11 min-w-fit snap-start items-center gap-2 rounded-2xl px-3 text-sm font-medium outline-none transition focus-visible:ring-2 focus-visible:ring-ring ${
+            className={`flex h-11 min-w-fit max-w-full snap-start items-center gap-2 rounded-2xl px-3 text-sm font-medium outline-none transition focus-visible:ring-2 focus-visible:ring-ring ${
               section === item.id
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-muted text-muted-foreground'
             }`}
             onClick={() => setSection(item.id)}
           >
-            <span className="[&_svg]:size-4">{item.icon}</span>
-            {item.label}
+            <span className="shrink-0 [&_svg]:size-4">{item.icon}</span>
+            <span className="min-w-0 truncate">{item.label}</span>
           </button>
         ))}
       </div>

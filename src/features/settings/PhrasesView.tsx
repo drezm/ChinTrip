@@ -70,7 +70,7 @@ export function PhrasesView({ state, mutate }: Pick<FeatureProps, 'state' | 'mut
   }
 
   return (
-    <section className="grid gap-4">
+    <section className="grid w-full min-w-0 max-w-full gap-4 overflow-x-clip">
       <PageHeader
         eyebrow="Китайский"
         title="Быстрые фразы"
@@ -81,7 +81,7 @@ export function PhrasesView({ state, mutate }: Pick<FeatureProps, 'state' | 'mut
           </Button>
         }
       />
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid min-w-0 gap-3 md:grid-cols-2">
         {phraseLibrary.map(([zh, pinyin, ru]) => (
           <PhraseCard key={zh} zh={zh} pinyin={pinyin} ru={ru} />
         ))}
@@ -141,7 +141,7 @@ function PhraseCard({
       }
       icon={<Languages className="size-5" />}
       actions={
-        <div className="flex">
+        <div className="flex shrink-0">
           <Button variant="ghost" size="icon" type="button" onClick={() => speak(zh)}>
             <Volume2 />
           </Button>

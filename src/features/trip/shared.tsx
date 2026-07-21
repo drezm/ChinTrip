@@ -53,8 +53,8 @@ export function PageHeader({
   action?: ReactNode
 }) {
   return (
-    <div className="flex items-start justify-between gap-3">
-      <div className="min-w-0">
+    <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+      <div className="min-w-0 flex-1">
         <p className="text-xs font-semibold uppercase tracking-wide text-destructive">
           {eyebrow}
         </p>
@@ -224,7 +224,7 @@ export function EntityActions({
   deleteTitle: string
 }) {
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex shrink-0 items-center gap-1">
       <Button variant="ghost" size="icon" type="button" onClick={onEdit}>
         <Pencil />
       </Button>
@@ -252,7 +252,7 @@ export function PhotoGallery({ value }: { value: string }) {
           <button
             key={`${photo}-${index}`}
             type="button"
-            className="relative aspect-[4/3] w-full min-w-full snap-start overflow-hidden rounded-2xl bg-muted md:min-w-64"
+        className="relative aspect-[4/3] w-full min-w-full max-w-full snap-start overflow-hidden rounded-2xl bg-muted md:min-w-64"
             onClick={() => setActive(photo)}
             aria-label={`Открыть фото ${index + 1}`}
           >
@@ -374,9 +374,11 @@ export function MediaLightbox({
 export function InfoRow({ label, value }: { label: string; value?: ReactNode }) {
   if (!value) return null
   return (
-    <div className="grid gap-1 rounded-2xl bg-muted/60 p-3">
+    <div className="grid min-w-0 gap-1 rounded-2xl bg-muted/60 p-3">
       <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      <strong className="min-w-0 break-words text-sm font-medium">{value}</strong>
+      <strong className="min-w-0 break-words text-sm font-medium [overflow-wrap:anywhere]">
+        {value}
+      </strong>
     </div>
   )
 }
@@ -408,7 +410,7 @@ export function RouteEntityCard({
   )
 
   return (
-    <div className="flex items-center gap-2 rounded-2xl bg-muted/60 p-2">
+    <div className="flex w-full min-w-0 max-w-full items-center gap-2 rounded-2xl bg-muted/60 p-2">
       {onOpen ? (
         <button
           className="flex min-w-0 flex-1 items-center gap-2"
@@ -458,7 +460,9 @@ export function EntityDetailModal({
         <TicketDetails ticket={state.tickets.find((ticket) => ticket.id === item.refId)} />
       ) : null}
       {item.kind === 'note' ? (
-        <p className="text-sm leading-6">{item.note || item.title}</p>
+        <p className="break-words text-sm leading-6 [overflow-wrap:anywhere]">
+          {item.note || item.title}
+        </p>
       ) : null}
     </ResponsiveModal>
   )
@@ -483,7 +487,11 @@ export function PlaceDetails({
         <InfoRow label="Раздел" value={section?.title ?? place.category} />
         <InfoRow label="Статус" value={place.status === 'want' ? 'Хочу' : 'Были'} />
       </div>
-      {place.note ? <p className="text-sm leading-6">{place.note}</p> : null}
+      {place.note ? (
+        <p className="break-words text-sm leading-6 [overflow-wrap:anywhere]">
+          {place.note}
+        </p>
+      ) : null}
       <OpenLinkButton href={place.url || placeMapUrl(place)} label="Открыть карту" />
     </div>
   )
@@ -499,7 +507,11 @@ export function HotelDetails({ hotel }: { hotel?: Hotel }) {
         <InfoRow label="Адрес" value={hotel.address} />
         <InfoRow label="Цена" value={formatRawMoney(hotel.price, hotel.currency)} />
       </div>
-      {hotel.note ? <p className="text-sm leading-6">{hotel.note}</p> : null}
+      {hotel.note ? (
+        <p className="break-words text-sm leading-6 [overflow-wrap:anywhere]">
+          {hotel.note}
+        </p>
+      ) : null}
       <div className="grid grid-cols-2 gap-2">
         <OpenLinkButton href={hotel.url} label="Бронь" />
         <OpenLinkButton href={hotel.confirmationUrl} label="Документ" />
@@ -550,7 +562,7 @@ export function TextInputForm({
 }) {
   return (
     <form
-      className="flex gap-2"
+      className="flex min-w-0 flex-col gap-2 sm:flex-row"
       onSubmit={(event) => {
         event.preventDefault()
         const form = event.currentTarget
@@ -560,8 +572,8 @@ export function TextInputForm({
         form.reset()
       }}
     >
-      <Input name="value" placeholder={placeholder} />
-      <Button type="submit" size="icon-lg" aria-label={buttonLabel}>
+      <Input className="min-w-0 flex-1" name="value" placeholder={placeholder} />
+      <Button className="shrink-0" type="submit" size="icon-lg" aria-label={buttonLabel}>
         <Plus />
       </Button>
     </form>
@@ -772,22 +784,24 @@ export function SimpleCard({
   return (
     <Card className={cn('overflow-hidden', className)}>
       <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
-        <div className="flex min-w-0 items-start gap-3">
+        <div className="flex min-w-0 flex-1 items-start gap-3">
           {icon ? (
             <div className="grid size-10 shrink-0 place-items-center rounded-2xl bg-muted text-muted-foreground">
               {icon}
             </div>
           ) : null}
-          <div className="min-w-0">
-            <h3 className="truncate text-base font-semibold">{title}</h3>
+          <div className="min-w-0 flex-1">
+            <h3 className="line-clamp-2 break-words text-base font-semibold leading-5 [overflow-wrap:anywhere]">
+              {title}
+            </h3>
             {subtitle ? (
-              <p className="mt-1 line-clamp-2 text-sm leading-5 text-muted-foreground">
+              <p className="mt-1 line-clamp-2 break-words text-sm leading-5 text-muted-foreground [overflow-wrap:anywhere]">
                 {subtitle}
               </p>
             ) : null}
           </div>
         </div>
-        {actions}
+        {actions ? <div className="shrink-0">{actions}</div> : null}
       </CardHeader>
       {children ? <CardContent>{children}</CardContent> : null}
     </Card>

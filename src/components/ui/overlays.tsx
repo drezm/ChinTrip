@@ -27,9 +27,9 @@ export function ResponsiveModal({
       <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
         <DialogPrimitive.Portal>
           <DialogPrimitive.Overlay className="fixed inset-0 z-50 hidden bg-black/45 data-[state=open]:animate-in data-[state=closed]:animate-out md:block" />
-          <DialogPrimitive.Content className="fixed left-1/2 top-1/2 z-50 hidden w-[min(720px,calc(100vw-32px))] max-h-[min(760px,calc(100vh-32px))] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-3xl border border-border bg-popover p-4 text-popover-foreground shadow-xl outline-none md:grid md:gap-4">
-            <div className="flex items-start justify-between gap-4">
-              <div className="grid gap-1">
+          <DialogPrimitive.Content className="fixed left-1/2 top-1/2 z-50 hidden w-[min(720px,calc(100vw-32px))] max-h-[min(760px,calc(100vh-32px))] -translate-x-1/2 -translate-y-1/2 overflow-x-hidden overflow-y-auto rounded-3xl border border-border bg-popover p-4 text-popover-foreground shadow-xl outline-none md:grid md:gap-4">
+            <div className="flex min-w-0 items-start justify-between gap-4">
+              <div className="grid min-w-0 flex-1 gap-1">
                 <DialogPrimitive.Title className="text-xl font-semibold">
                   {title}
                 </DialogPrimitive.Title>
@@ -54,10 +54,16 @@ export function ResponsiveModal({
       <Drawer.Root open={open} onOpenChange={onOpenChange}>
         <Drawer.Portal>
           <Drawer.Overlay className="fixed inset-0 z-50 bg-black/45 md:hidden" />
-          <Drawer.Content className="fixed inset-x-0 bottom-0 z-50 max-h-[88svh] rounded-t-3xl border border-border bg-popover p-4 pb-[calc(16px+env(safe-area-inset-bottom))] text-popover-foreground shadow-xl outline-none md:hidden">
+          <Drawer.Content
+            className="fixed inset-x-0 z-50 min-w-0 max-w-full overflow-hidden rounded-t-3xl border border-border bg-popover p-4 pb-[calc(16px+env(safe-area-inset-bottom))] text-popover-foreground shadow-xl outline-none transition-[bottom,max-height] duration-150 md:hidden"
+            style={{
+              bottom: 'var(--keyboard-inset, 0px)',
+              maxHeight: 'calc(var(--visual-viewport-height, 100svh) - 12px)',
+            }}
+          >
             <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-muted" />
-            <div className="mb-4 flex items-start justify-between gap-4">
-              <div className="grid gap-1">
+            <div className="mb-4 flex min-w-0 items-start justify-between gap-4">
+              <div className="grid min-w-0 flex-1 gap-1">
                 <Drawer.Title className="text-lg font-semibold">{title}</Drawer.Title>
                 {description ? (
                   <Drawer.Description className="text-sm text-muted-foreground">
@@ -71,7 +77,12 @@ export function ResponsiveModal({
                 </Button>
               </Drawer.Close>
             </div>
-            <div className="max-h-[calc(88svh-120px)] overflow-auto pr-1">
+            <div
+              className="min-w-0 max-w-full overflow-x-hidden overflow-y-auto pb-[calc(32px+env(safe-area-inset-bottom))] pr-1"
+              style={{
+                maxHeight: 'calc(var(--visual-viewport-height, 100svh) - 132px)',
+              }}
+            >
               {children}
             </div>
             {footer}
@@ -127,4 +138,3 @@ export function ConfirmDeleteDialog({
     </AlertDialogPrimitive.Root>
   )
 }
-

@@ -32,7 +32,7 @@ export function NotesView({ state, mutate }: Pick<FeatureProps, 'state' | 'mutat
   const [creatingChecklist, setCreatingChecklist] = useState(false)
 
   return (
-    <section className="grid gap-4">
+    <section className="grid w-full min-w-0 max-w-full gap-4 overflow-x-clip">
       <PageHeader
         eyebrow="Заметки"
         title="Чек-листы"
@@ -43,7 +43,7 @@ export function NotesView({ state, mutate }: Pick<FeatureProps, 'state' | 'mutat
           </Button>
         }
       />
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid min-w-0 gap-3 md:grid-cols-2">
         {state.checklists.map((checklist) => (
           <ChecklistCard key={checklist.id} checklist={checklist} state={state} mutate={mutate} />
         ))}
@@ -84,10 +84,12 @@ function ChecklistCard({
   return (
     <Card>
       <CardContent className="grid gap-3 pt-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
+        <div className="flex min-w-0 items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
             <Badge>{checklist.kind}</Badge>
-            <h3 className="mt-2 text-lg font-semibold">{checklist.title}</h3>
+            <h3 className="mt-2 line-clamp-2 break-words text-lg font-semibold leading-6 [overflow-wrap:anywhere]">
+              {checklist.title}
+            </h3>
           </div>
           <EntityActions
             deleteTitle="Удалить список"
@@ -111,10 +113,10 @@ function ChecklistCard({
         </div>
         <div className="grid gap-2">
           {items.map((item) => (
-            <div className="flex items-center gap-2 rounded-2xl bg-muted/60 p-2" key={item.id}>
+            <div className="flex min-w-0 items-center gap-2 rounded-2xl bg-muted/60 p-2" key={item.id}>
               <label className="flex min-w-0 flex-1 items-center gap-2 text-sm">
                 <input
-                  className="size-4 accent-primary"
+                  className="size-4 shrink-0 accent-primary"
                   type="checkbox"
                   checked={item.done}
                   onChange={(event) =>
@@ -130,7 +132,11 @@ function ChecklistCard({
                     )
                   }
                 />
-                <span className={item.done ? 'line-through text-muted-foreground' : ''}>
+                <span
+                  className={`min-w-0 break-words [overflow-wrap:anywhere] ${
+                    item.done ? 'line-through text-muted-foreground' : ''
+                  }`}
+                >
                   {item.text}
                 </span>
               </label>
@@ -153,7 +159,7 @@ function ChecklistCard({
           ))}
         </div>
         <form
-          className="flex gap-2"
+          className="flex min-w-0 flex-col gap-2 sm:flex-row"
           onSubmit={(event) => {
             event.preventDefault()
             const text = getFormString(new FormData(event.currentTarget), 'text')
@@ -169,8 +175,8 @@ function ChecklistCard({
             event.currentTarget.reset()
           }}
         >
-          <Input name="text" placeholder="Новый пункт" />
-          <Button type="submit" size="icon-lg">
+          <Input className="min-w-0 flex-1" name="text" placeholder="Новый пункт" />
+          <Button className="shrink-0" type="submit" size="icon-lg">
             <Plus />
           </Button>
         </form>

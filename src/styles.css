@@ -42,6 +42,12 @@
 }
 
 :root {
+  --visual-viewport-height: 100svh;
+  --keyboard-inset: 0px;
+  --mobile-nav-height: 76px;
+  --mobile-bottom-content-padding: calc(
+    var(--mobile-nav-height) + env(safe-area-inset-bottom) + 16px
+  );
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -112,6 +118,8 @@ html {
 }
 
 body {
+  width: 100%;
+  max-width: 100%;
   min-height: 100%;
   margin: 0;
   background: var(--background);
@@ -119,6 +127,17 @@ body {
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+}
+
+body.keyboard-open {
+  --mobile-bottom-content-padding: 16px;
+}
+
+body.keyboard-open .mobile-bottom-nav,
+body.keyboard-open .currency-fab {
+  transform: translateY(calc(100% + var(--keyboard-inset, 0px) + 16px));
+  opacity: 0;
+  pointer-events: none;
 }
 
 button,

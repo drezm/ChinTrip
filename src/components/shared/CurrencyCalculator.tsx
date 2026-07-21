@@ -46,7 +46,7 @@ export function CurrencyCalculator({ settings }: { settings: Settings }) {
   return (
     <>
       <Button
-        className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] right-4 z-40 rounded-full shadow-lg md:bottom-6 md:right-6"
+        className="currency-fab fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] right-4 z-40 rounded-full shadow-lg transition duration-150 md:bottom-6 md:right-6"
         type="button"
         size="icon-lg"
         aria-label="Открыть калькулятор валют"
@@ -56,8 +56,8 @@ export function CurrencyCalculator({ settings }: { settings: Settings }) {
       </Button>
 
       <EntityModal open={open} title="Калькулятор валют" onOpenChange={setOpen}>
-        <div className="grid gap-4">
-          <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
+        <div className="grid min-w-0 gap-4">
+          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2">
             <Field label="Из">
               <SelectField
                 name="fromCurrency"
@@ -106,15 +106,17 @@ export function CurrencyCalculator({ settings }: { settings: Settings }) {
               onChange={(event) => setAmount(event.currentTarget.value)}
             />
           </Field>
-          <div className="rounded-3xl border bg-muted/50 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm text-muted-foreground">Итого</span>
-              <Badge>1 CNY = {settings.cnyToRubRate.toFixed(2)} RUB</Badge>
+          <div className="min-w-0 rounded-3xl border bg-muted/50 p-4">
+            <div className="flex min-w-0 items-center justify-between gap-3">
+              <span className="shrink-0 text-sm text-muted-foreground">Итого</span>
+              <Badge className="shrink min-w-0 truncate">
+                1 CNY = {settings.cnyToRubRate.toFixed(2)} RUB
+              </Badge>
             </div>
-            <p className="mt-3 text-3xl font-semibold tracking-tight">
+            <p className="mt-3 break-words text-3xl font-semibold tracking-tight [overflow-wrap:anywhere]">
               {formatRawMoney(result, toCurrency)}
             </p>
-            <p className="mt-2 text-xs text-muted-foreground">
+            <p className="mt-2 break-words text-xs text-muted-foreground [overflow-wrap:anywhere]">
               Курс обновлён {formatDateTime(settings.rateUpdatedAt)}
             </p>
           </div>

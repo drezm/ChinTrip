@@ -68,12 +68,16 @@ export function HotelsView({ state, mutate }: Pick<FeatureProps, 'state' | 'muta
             />
           }
         >
-          <div className="grid gap-2 text-sm">
-            {hotel.address ? <span>{hotel.address}</span> : null}
+          <div className="grid min-w-0 gap-2 text-sm">
+            {hotel.address ? (
+              <span className="break-words [overflow-wrap:anywhere]">
+                {hotel.address}
+              </span>
+            ) : null}
             <span className="text-muted-foreground">
               {formatRawMoney(hotel.price, hotel.currency)}
             </span>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex min-w-0 flex-wrap gap-2">
               <OpenLinkButton href={hotel.url} label="Бронь" />
               <OpenLinkButton href={hotel.confirmationUrl} label="Документ" />
             </div>
@@ -124,7 +128,7 @@ export function TicketsView({ state, mutate }: Pick<FeatureProps, 'state' | 'mut
             />
           }
         >
-          <div className="flex flex-wrap gap-2">
+          <div className="flex min-w-0 flex-wrap gap-2">
             <OpenLinkButton href={ticket.url} label="Ссылка" />
             <OpenLinkButton href={ticket.fileUrl} label="Файл" />
           </div>
@@ -394,7 +398,7 @@ function EntityList({
   children: React.ReactNode
 }) {
   return (
-    <section className="grid gap-4">
+    <section className="grid w-full min-w-0 max-w-full gap-4 overflow-x-clip">
       <PageHeader
         eyebrow="Список"
         title={title}
@@ -405,7 +409,7 @@ function EntityList({
           </Button>
         }
       />
-      <div className="grid gap-3 md:grid-cols-2">{children}</div>
+      <div className="grid min-w-0 gap-3 md:grid-cols-2">{children}</div>
     </section>
   )
 }

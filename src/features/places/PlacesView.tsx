@@ -50,7 +50,7 @@ export function PlacesView({ state, mutate }: FeatureProps) {
       : state.places.filter((place) => place.category === activeSection)
 
   return (
-    <section className="grid gap-4">
+    <section className="grid w-full min-w-0 max-w-full gap-4 overflow-x-clip">
       <PageHeader
         eyebrow="Места"
         title="Подборки"
@@ -64,7 +64,7 @@ export function PlacesView({ state, mutate }: FeatureProps) {
 
       <Card>
         <CardContent className="grid gap-3 pt-4">
-          <div className="flex snap-x gap-2 overflow-x-auto pb-1">
+          <div className="flex w-full min-w-0 max-w-full snap-x gap-2 overflow-x-auto pb-1">
             <SectionChip
               active={activeSection === 'all'}
               title="Все"
@@ -115,19 +115,25 @@ export function PlacesView({ state, mutate }: FeatureProps) {
         </CardContent>
       </Card>
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-3">
         {visiblePlaces.map((place) => (
           <Card key={place.id} className="overflow-hidden">
             <PhotoGallery value={place.photoUrl} />
             <CardContent className="grid gap-3 pt-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
+              <div className="flex min-w-0 items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
                   <Badge className="mb-2">
                     {sectionIcon(place.category)}
-                    {placeSectionLabel(place.category, sections)}
+                    <span className="min-w-0 truncate">
+                      {placeSectionLabel(place.category, sections)}
+                    </span>
                   </Badge>
-                  <h3 className="truncate text-lg font-semibold">{place.name}</h3>
-                  <p className="text-sm text-muted-foreground">{place.city}</p>
+                  <h3 className="line-clamp-2 break-words text-lg font-semibold leading-6 [overflow-wrap:anywhere]">
+                    {place.name}
+                  </h3>
+                  <p className="break-words text-sm text-muted-foreground [overflow-wrap:anywhere]">
+                    {place.city}
+                  </p>
                 </div>
                 <EntityActions
                   deleteTitle="Удалить место"
@@ -149,8 +155,12 @@ export function PlacesView({ state, mutate }: FeatureProps) {
                   }
                 />
               </div>
-              {place.note ? <p className="text-sm leading-6">{place.note}</p> : null}
-              <div className="flex flex-wrap gap-2">
+              {place.note ? (
+                <p className="break-words text-sm leading-6 [overflow-wrap:anywhere]">
+                  {place.note}
+                </p>
+              ) : null}
+              <div className="flex min-w-0 flex-wrap gap-2">
                 <Button
                   variant={place.status === 'want' ? 'default' : 'secondary'}
                   type="button"
@@ -400,17 +410,17 @@ function SectionChip({
 }) {
   return (
     <div
-      className={`flex min-w-fit snap-start items-center gap-1 rounded-2xl border p-1 ${
+      className={`flex min-w-fit max-w-full snap-start items-center gap-1 rounded-2xl border p-1 ${
         active ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-muted/60'
       }`}
     >
       <button
-        className="flex h-9 items-center gap-2 rounded-xl px-2 text-sm font-medium"
+        className="flex h-9 min-w-0 items-center gap-2 rounded-xl px-2 text-sm font-medium"
         type="button"
         onClick={onClick}
       >
         {icon}
-        {title}
+        <span className="min-w-0 truncate">{title}</span>
         <span className="rounded-full bg-background/70 px-2 py-0.5 text-xs text-foreground">
           {count}
         </span>
