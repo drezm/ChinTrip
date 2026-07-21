@@ -144,14 +144,19 @@ export function SubmitRow({
   disabled?: boolean
 }) {
   return (
-    <div className="sticky bottom-0 -mx-1 mt-2 grid grid-cols-2 gap-2 bg-popover/95 p-1 pb-[calc(4px+env(safe-area-inset-bottom))] backdrop-blur md:static md:m-0 md:bg-transparent md:p-0">
-      <Button variant="secondary" type="button" onClick={onCancel}>
+    <div className="sticky bottom-0 -mx-1 mt-2 grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2 bg-popover/95 p-1 pb-[calc(4px+env(safe-area-inset-bottom))] backdrop-blur md:static md:m-0 md:bg-transparent md:p-0">
+      <Button
+        className="w-full min-w-0 shrink px-2"
+        variant="secondary"
+        type="button"
+        onClick={onCancel}
+      >
         <X />
-        Отмена
+        <span className="min-w-0 truncate">Отмена</span>
       </Button>
-      <Button disabled={disabled} type="submit">
+      <Button className="w-full min-w-0 shrink px-2" disabled={disabled} type="submit">
         <Save />
-        {submitLabel}
+        <span className="min-w-0 truncate">{submitLabel}</span>
       </Button>
     </div>
   )
@@ -291,7 +296,7 @@ export function DocumentPreview({ value }: { value: string }) {
       loading="lazy"
     />
   ) : image ? (
-    <img className="size-full object-cover" src={value} alt="" loading="lazy" />
+    <img className="size-full object-contain p-1" src={value} alt="" loading="lazy" />
   ) : (
     <div className="grid size-full place-items-center bg-muted text-muted-foreground">
       <FileText className="size-8" />
@@ -805,7 +810,7 @@ export function StatusBadge({ saved }: { saved: boolean }) {
 }
 
 export function formGridClass() {
-  return 'grid min-w-0 gap-3 md:grid-cols-2'
+  return 'grid min-w-0 max-w-full gap-3 md:grid-cols-2'
 }
 
 export {

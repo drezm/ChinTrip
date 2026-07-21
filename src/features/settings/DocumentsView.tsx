@@ -236,12 +236,16 @@ function DocumentCard({
     <Card className="overflow-hidden">
       <DocumentPreview value={value} />
       <CardContent className="grid gap-3 pt-4">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start justify-between gap-3">
           <div className="min-w-0">
-            <h3 className="truncate text-base font-semibold">{title}</h3>
-            <p className="truncate text-sm text-muted-foreground">{meta}</p>
+            <h3 className="line-clamp-2 break-words text-base font-semibold leading-5">
+              {title}
+            </h3>
+            <p className="mt-1 line-clamp-2 break-words text-sm text-muted-foreground">
+              {meta}
+            </p>
           </div>
-          <div className="flex">
+          <div className="flex shrink-0">
             <Button variant="ghost" size="icon" type="button" onClick={onEdit}>
               <FileText />
             </Button>

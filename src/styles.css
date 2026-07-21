@@ -159,6 +159,18 @@ input[type="file"] {
 }
 
 @media (max-width: 767px) {
+  html,
+  body {
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+
   [data-slot="button"] {
     min-width: 44px;
     min-height: 44px;
