@@ -424,11 +424,19 @@ function useVisualViewportKeyboard() {
         )
         const activeElement = document.activeElement
         const keyboardOpen = isEditableElement(activeElement) && keyboardInset > 80
+        const layoutViewportHeight = root.clientHeight || window.innerHeight
+        const layoutAlreadyResized =
+          keyboardOpen && Math.abs(layoutViewportHeight - viewportHeight) < 32
+        const drawerKeyboardInset = layoutAlreadyResized ? 0 : keyboardInset
 
         root.style.setProperty('--visual-viewport-height', `${Math.round(viewportHeight)}px`)
         root.style.setProperty(
           '--keyboard-inset',
           `${Math.round(keyboardOpen ? keyboardInset : 0)}px`,
+        )
+        root.style.setProperty(
+          '--drawer-keyboard-inset',
+          `${Math.round(keyboardOpen ? drawerKeyboardInset : 0)}px`,
         )
         body.classList.toggle('keyboard-open', keyboardOpen)
 
@@ -464,6 +472,7 @@ function useVisualViewportKeyboard() {
       visualViewport?.removeEventListener('scroll', handleViewportChange)
       body.classList.remove('keyboard-open')
       root.style.removeProperty('--keyboard-inset')
+      root.style.removeProperty('--drawer-keyboard-inset')
       root.style.removeProperty('--visual-viewport-height')
     }
   }, [])

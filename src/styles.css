@@ -44,6 +44,10 @@
 :root {
   --visual-viewport-height: 100svh;
   --keyboard-inset: 0px;
+  --drawer-keyboard-inset: 0px;
+  --drawer-shell-bottom-padding: calc(16px + env(safe-area-inset-bottom));
+  --drawer-scroll-bottom-padding: calc(32px + env(safe-area-inset-bottom));
+  --form-actions-bottom-padding: calc(4px + env(safe-area-inset-bottom));
   --mobile-nav-height: 76px;
   --mobile-bottom-content-padding: calc(
     var(--mobile-nav-height) + env(safe-area-inset-bottom) + 16px
@@ -130,6 +134,9 @@ body {
 }
 
 body.keyboard-open {
+  --drawer-shell-bottom-padding: 8px;
+  --drawer-scroll-bottom-padding: 8px;
+  --form-actions-bottom-padding: 4px;
   --mobile-bottom-content-padding: 16px;
 }
 

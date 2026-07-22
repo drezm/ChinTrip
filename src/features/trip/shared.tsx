@@ -144,7 +144,7 @@ export function SubmitRow({
   disabled?: boolean
 }) {
   return (
-    <div className="sticky bottom-0 -mx-1 mt-2 grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2 bg-popover/95 p-1 pb-[calc(4px+env(safe-area-inset-bottom))] backdrop-blur md:static md:m-0 md:bg-transparent md:p-0">
+    <div className="sticky bottom-0 -mx-1 mt-2 grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2 bg-popover/95 p-1 pb-[var(--form-actions-bottom-padding)] backdrop-blur md:static md:m-0 md:bg-transparent md:p-0">
       <Button
         className="w-full min-w-0 shrink px-2"
         variant="secondary"

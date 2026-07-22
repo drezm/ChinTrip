@@ -55,9 +55,9 @@ export function ResponsiveModal({
         <Drawer.Portal>
           <Drawer.Overlay className="fixed inset-0 z-50 bg-black/45 md:hidden" />
           <Drawer.Content
-            className="fixed inset-x-0 z-50 min-w-0 max-w-full overflow-hidden rounded-t-3xl border border-border bg-popover p-4 pb-[calc(16px+env(safe-area-inset-bottom))] text-popover-foreground shadow-xl outline-none transition-[bottom,max-height] duration-150 md:hidden"
+            className="fixed inset-x-0 z-50 min-w-0 max-w-full overflow-hidden rounded-t-3xl border border-border bg-popover p-4 pb-[var(--drawer-shell-bottom-padding)] text-popover-foreground shadow-xl outline-none transition-[bottom,max-height] duration-150 md:hidden"
             style={{
-              bottom: 'var(--keyboard-inset, 0px)',
+              bottom: 'var(--drawer-keyboard-inset, 0px)',
               maxHeight: 'calc(var(--visual-viewport-height, 100svh) - 12px)',
             }}
           >
@@ -78,7 +78,7 @@ export function ResponsiveModal({
               </Drawer.Close>
             </div>
             <div
-              className="min-w-0 max-w-full overflow-x-hidden overflow-y-auto pb-[calc(32px+env(safe-area-inset-bottom))] pr-1"
+              className="min-w-0 max-w-full overflow-x-hidden overflow-y-auto pb-[var(--drawer-scroll-bottom-padding)] pr-1"
               style={{
                 maxHeight: 'calc(var(--visual-viewport-height, 100svh) - 132px)',
               }}
