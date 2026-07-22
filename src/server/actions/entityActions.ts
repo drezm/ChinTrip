@@ -372,7 +372,25 @@ export const updatePlace = createServerFn({ method: 'POST' })
     })
   })
 
-export const deletePlace = deleteEntityAction('places', 'Место не найдено')
+export const deletePlace = createServerFn({ method: 'POST' })
+  .validator((value: unknown) => value)
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
+      const placeId = String((data as { id?: string }).id ?? '')
+      findRequired(state.places, placeId, 'Место не найдено')
+      return {
+        state: {
+          ...state,
+          places: state.places.filter((place) => place.id !== placeId),
+          dayItems: state.dayItems.filter(
+            (item) => !(item.kind === 'place' && item.refId === placeId),
+          ),
+        },
+        result: { id: placeId },
+      }
+    })
+  })
 
 export const changePlaceStatus = createServerFn({ method: 'POST' })
   .validator((value: unknown) => value)
@@ -487,16 +505,44 @@ export const deletePlaceSection = createServerFn({ method: 'POST' })
     })
   })
 
-export const createDay = createSimpleEntityAction(
-  createDaySchema,
-  'days',
-  (input) => ({ ...input, id: id('day'), createdAt: nowIso(), updatedAt: nowIso() }),
-)
-export const updateDay = updateSimpleEntityAction(
-  updateDaySchema,
-  'days',
-  'День не найден',
-)
+export const createDay = createServerFn({ method: 'POST' })
+  .validator((value: unknown) => value)
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
+      const input = parseWithSchema(createDaySchema, data)
+      const day: Day = {
+        ...input,
+        id: id('day'),
+        createdAt: nowIso(),
+        updatedAt: nowIso(),
+      }
+      return {
+        state: { ...state, days: [day, ...state.days] },
+        result: day,
+      }
+    })
+  })
+
+export const updateDay = createServerFn({ method: 'POST' })
+  .validator((value: unknown) => value)
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
+      const input = parseWithSchema(updateDaySchema, data)
+      const existing = findRequired(state.days, input.id, 'День не найден')
+      const day: Day = { ...existing, ...input, updatedAt: nowIso() }
+      return {
+        state: {
+          ...state,
+          days: state.days.map((candidate) =>
+            candidate.id === day.id ? day : candidate,
+          ),
+        },
+        result: day,
+      }
+    })
+  })
 export const deleteDay = createServerFn({ method: 'POST' })
   .validator((value: unknown) => value)
   .handler(async ({ data }) => {
@@ -539,15 +585,46 @@ export const createDayItem = createServerFn({ method: 'POST' })
       }
     })
   })
-export const updateDayItem = updateSimpleEntityAction(
-  updateDayItemSchema,
-  'dayItems',
-  'Элемент маршрута не найден',
-)
-export const deleteDayItem = deleteEntityAction(
-  'dayItems',
-  'Элемент маршрута не найден',
-)
+export const updateDayItem = createServerFn({ method: 'POST' })
+  .validator((value: unknown) => value)
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
+      const input = parseWithSchema(updateDayItemSchema, data)
+      const existing = findRequired(
+        state.dayItems,
+        input.id,
+        'Элемент маршрута не найден',
+      )
+      const item: DayItem = { ...existing, ...input, updatedAt: nowIso() }
+      return {
+        state: {
+          ...state,
+          dayItems: state.dayItems.map((candidate) =>
+            candidate.id === item.id ? item : candidate,
+          ),
+        },
+        result: item,
+      }
+    })
+  })
+
+export const deleteDayItem = createServerFn({ method: 'POST' })
+  .validator((value: unknown) => value)
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
+      const itemId = String((data as { id?: string }).id ?? '')
+      findRequired(state.dayItems, itemId, 'Элемент маршрута не найден')
+      return {
+        state: {
+          ...state,
+          dayItems: state.dayItems.filter((item) => item.id !== itemId),
+        },
+        result: { id: itemId },
+      }
+    })
+  })
 export const reorderDayItems = createServerFn({ method: 'POST' })
   .validator((value: unknown) => value)
   .handler(async ({ data }) => {
@@ -592,55 +669,203 @@ export const moveDayItemToAnotherDay = createServerFn({ method: 'POST' })
     })
   })
 
-export const createHotel = createLinkedEntityAction(
-  createHotelSchema,
-  'hotels',
-  'hotel',
-)
-export const updateHotel = updateLinkedEntityAction(
-  updateHotelSchema,
-  'hotels',
-  'hotel',
-  'Отель не найден',
-)
-export const deleteHotel = deleteLinkedEntityAction(
-  'hotels',
-  'hotel',
-  'Отель не найден',
-)
+export const createHotel = createServerFn({ method: 'POST' })
+  .validator((value: unknown) => value)
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
+      const input = parseWithSchema(createHotelSchema, data)
+      validateEntityLinks(state, input)
+      const timestamp = nowIso()
+      const hotel: Hotel = {
+        id: id('hotel'),
+        name: input.name,
+        city: input.city,
+        address: input.address,
+        checkIn: input.checkIn,
+        checkOut: input.checkOut,
+        price: input.price,
+        currency: input.currency,
+        url: input.url,
+        confirmationUrl: input.confirmationUrl,
+        note: input.note,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      }
+      return {
+        state: {
+          ...state,
+          hotels: [...state.hotels, hotel],
+          dayItems: input.dayId
+            ? [...state.dayItems, makeDayItem(state, input.dayId, 'hotel', hotel.id)]
+            : state.dayItems,
+        },
+        result: hotel,
+      }
+    })
+  })
 
-export const createTicket = createLinkedEntityAction(
-  createTicketSchema,
-  'tickets',
-  'ticket',
-)
-export const updateTicket = updateLinkedEntityAction(
-  updateTicketSchema,
-  'tickets',
-  'ticket',
-  'Билет не найден',
-)
-export const deleteTicket = deleteLinkedEntityAction(
-  'tickets',
-  'ticket',
-  'Билет не найден',
-)
+export const updateHotel = createServerFn({ method: 'POST' })
+  .validator((value: unknown) => value)
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
+      const input = parseWithSchema(updateHotelSchema, data)
+      validateEntityLinks(state, input)
+      const existing = findRequired(state.hotels, input.id, 'Отель не найден')
+      const { dayId, ...hotelInput } = input
+      const hotel: Hotel = { ...existing, ...hotelInput, updatedAt: nowIso() }
+      return {
+        state: {
+          ...state,
+          hotels: state.hotels.map((candidate) =>
+            candidate.id === hotel.id ? hotel : candidate,
+          ),
+          dayItems: syncDayItemLink(state.dayItems, state, 'hotel', hotel.id, dayId),
+        },
+        result: hotel,
+      }
+    })
+  })
 
-export const createChecklist = createSimpleEntityAction(
-  createChecklistSchema,
-  'checklists',
-  (input) => ({
-    ...input,
-    id: id('checklist'),
-    createdAt: nowIso(),
-    updatedAt: nowIso(),
-  }),
-)
-export const updateChecklist = updateSimpleEntityAction(
-  updateChecklistSchema,
-  'checklists',
-  'Список не найден',
-)
+export const deleteHotel = createServerFn({ method: 'POST' })
+  .validator((value: unknown) => value)
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
+      const hotelId = String((data as { id?: string }).id ?? '')
+      findRequired(state.hotels, hotelId, 'Отель не найден')
+      return {
+        state: {
+          ...state,
+          hotels: state.hotels.filter((hotel) => hotel.id !== hotelId),
+          dayItems: state.dayItems.filter(
+            (item) => !(item.kind === 'hotel' && item.refId === hotelId),
+          ),
+        },
+        result: { id: hotelId },
+      }
+    })
+  })
+
+export const createTicket = createServerFn({ method: 'POST' })
+  .validator((value: unknown) => value)
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
+      const input = parseWithSchema(createTicketSchema, data)
+      validateEntityLinks(state, input)
+      const timestamp = nowIso()
+      const ticket: Ticket = {
+        id: id('ticket'),
+        kind: input.kind,
+        fromCity: input.fromCity,
+        toCity: input.toCity,
+        departAt: input.departAt,
+        arriveAt: input.arriveAt,
+        refNumber: input.refNumber,
+        seat: input.seat,
+        price: input.price,
+        currency: input.currency,
+        url: input.url,
+        fileUrl: input.fileUrl,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      }
+      return {
+        state: {
+          ...state,
+          tickets: [...state.tickets, ticket],
+          dayItems: input.dayId
+            ? [...state.dayItems, makeDayItem(state, input.dayId, 'ticket', ticket.id)]
+            : state.dayItems,
+        },
+        result: ticket,
+      }
+    })
+  })
+
+export const updateTicket = createServerFn({ method: 'POST' })
+  .validator((value: unknown) => value)
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
+      const input = parseWithSchema(updateTicketSchema, data)
+      validateEntityLinks(state, input)
+      const existing = findRequired(state.tickets, input.id, 'Билет не найден')
+      const { dayId, ...ticketInput } = input
+      const ticket: Ticket = { ...existing, ...ticketInput, updatedAt: nowIso() }
+      return {
+        state: {
+          ...state,
+          tickets: state.tickets.map((candidate) =>
+            candidate.id === ticket.id ? ticket : candidate,
+          ),
+          dayItems: syncDayItemLink(state.dayItems, state, 'ticket', ticket.id, dayId),
+        },
+        result: ticket,
+      }
+    })
+  })
+
+export const deleteTicket = createServerFn({ method: 'POST' })
+  .validator((value: unknown) => value)
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
+      const ticketId = String((data as { id?: string }).id ?? '')
+      findRequired(state.tickets, ticketId, 'Билет не найден')
+      return {
+        state: {
+          ...state,
+          tickets: state.tickets.filter((ticket) => ticket.id !== ticketId),
+          dayItems: state.dayItems.filter(
+            (item) => !(item.kind === 'ticket' && item.refId === ticketId),
+          ),
+        },
+        result: { id: ticketId },
+      }
+    })
+  })
+
+export const createChecklist = createServerFn({ method: 'POST' })
+  .validator((value: unknown) => value)
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
+      const input = parseWithSchema(createChecklistSchema, data)
+      const checklist: Checklist = {
+        ...input,
+        id: id('checklist'),
+        createdAt: nowIso(),
+        updatedAt: nowIso(),
+      }
+      return {
+        state: { ...state, checklists: [checklist, ...state.checklists] },
+        result: checklist,
+      }
+    })
+  })
+
+export const updateChecklist = createServerFn({ method: 'POST' })
+  .validator((value: unknown) => value)
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
+      const input = parseWithSchema(updateChecklistSchema, data)
+      const existing = findRequired(state.checklists, input.id, 'Список не найден')
+      const checklist: Checklist = { ...existing, ...input, updatedAt: nowIso() }
+      return {
+        state: {
+          ...state,
+          checklists: state.checklists.map((candidate) =>
+            candidate.id === checklist.id ? checklist : candidate,
+          ),
+        },
+        result: checklist,
+      }
+    })
+  })
 export const deleteChecklist = createServerFn({ method: 'POST' })
   .validator((value: unknown) => value)
   .handler(async ({ data }) => {
@@ -687,11 +912,25 @@ export const createChecklistItem = createServerFn({ method: 'POST' })
       }
     })
   })
-export const updateChecklistItem = updateSimpleEntityAction(
-  updateChecklistItemSchema,
-  'checklistItems',
-  'Пункт не найден',
-)
+export const updateChecklistItem = createServerFn({ method: 'POST' })
+  .validator((value: unknown) => value)
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
+      const input = parseWithSchema(updateChecklistItemSchema, data)
+      const existing = findRequired(state.checklistItems, input.id, 'Пункт не найден')
+      const item: ChecklistItem = { ...existing, ...input, updatedAt: nowIso() }
+      return {
+        state: {
+          ...state,
+          checklistItems: state.checklistItems.map((candidate) =>
+            candidate.id === item.id ? item : candidate,
+          ),
+        },
+        result: item,
+      }
+    })
+  })
 export const toggleChecklistItem = createServerFn({ method: 'POST' })
   .validator((value: unknown) => value)
   .handler(async ({ data }) => {
@@ -711,10 +950,22 @@ export const toggleChecklistItem = createServerFn({ method: 'POST' })
       }
     })
   })
-export const deleteChecklistItem = deleteEntityAction(
-  'checklistItems',
-  'Пункт не найден',
-)
+export const deleteChecklistItem = createServerFn({ method: 'POST' })
+  .validator((value: unknown) => value)
+  .handler(async ({ data }) => {
+    const { mutateTripState } = await import('../repositories/stateMutation')
+    return mutateTripState((state) => {
+      const itemId = String((data as { id?: string }).id ?? '')
+      findRequired(state.checklistItems, itemId, 'Пункт не найден')
+      return {
+        state: {
+          ...state,
+          checklistItems: state.checklistItems.filter((item) => item.id !== itemId),
+        },
+        result: { id: itemId },
+      }
+    })
+  })
 export const reorderChecklistItems = createServerFn({ method: 'POST' })
   .validator((value: unknown) => value)
   .handler(async ({ data }) => {
@@ -749,184 +1000,6 @@ export const updateTripSettings = createServerFn({ method: 'POST' })
       return { state: { ...state, settings }, result: settings }
     })
   })
-
-function createSimpleEntityAction(
-  schema: unknown,
-  key: keyof Pick<import('../../types/trip').TripState, 'days' | 'checklists'>,
-  makeEntity: (input: any) => any,
-) {
-  return createServerFn({ method: 'POST' })
-    .validator((value: unknown) => value)
-    .handler(async ({ data }) => {
-      const { mutateTripState } = await import('../repositories/stateMutation')
-      return mutateTripState((state) => {
-        const input = parseWithSchema(schema as never, data) as any
-        const entity = makeEntity(input)
-        return {
-          state: { ...state, [key]: [entity, ...((state[key] as any[]) ?? [])] },
-          result: entity,
-        }
-      })
-    })
-}
-
-function updateSimpleEntityAction(
-  schema: unknown,
-  key: keyof Pick<
-    import('../../types/trip').TripState,
-    'days' | 'dayItems' | 'checklists' | 'checklistItems'
-  >,
-  missingMessage: string,
-) {
-  return createServerFn({ method: 'POST' })
-    .validator((value: unknown) => value)
-    .handler(async ({ data }) => {
-      const { mutateTripState } = await import('../repositories/stateMutation')
-      return mutateTripState((state) => {
-        const input = parseWithSchema(schema as never, data) as {
-          id: string
-        } & Record<string, unknown>
-        const existing = findRequired(state[key] as any[], input.id, missingMessage)
-        const entity = { ...existing, ...input, updatedAt: nowIso() }
-        return {
-          state: {
-            ...state,
-            [key]: (state[key] as any[]).map((candidate) =>
-              candidate.id === entity.id ? entity : candidate,
-            ),
-          },
-          result: entity,
-        }
-      })
-    })
-}
-
-function deleteEntityAction(
-  key: keyof Pick<
-    import('../../types/trip').TripState,
-    'places' | 'dayItems' | 'checklistItems'
-  >,
-  missingMessage: string,
-) {
-  return createServerFn({ method: 'POST' })
-    .validator((value: unknown) => value)
-    .handler(async ({ data }) => {
-      const { mutateTripState } = await import('../repositories/stateMutation')
-      return mutateTripState((state) => {
-        const itemId = String((data as { id?: string }).id ?? '')
-        findRequired(state[key] as any[], itemId, missingMessage)
-        return {
-          state: {
-            ...state,
-            [key]: (state[key] as any[]).filter((item) => item.id !== itemId),
-            dayItems:
-              key === 'places'
-                ? state.dayItems.filter(
-                    (item) => !(item.kind === 'place' && item.refId === itemId),
-                  )
-                : state.dayItems,
-          },
-          result: { id: itemId },
-        }
-      })
-    })
-}
-
-function createLinkedEntityAction(
-  schema: unknown,
-  key: 'hotels' | 'tickets',
-  kind: 'hotel' | 'ticket',
-) {
-  return createServerFn({ method: 'POST' })
-    .validator((value: unknown) => value)
-    .handler(async ({ data }) => {
-      const { mutateTripState } = await import('../repositories/stateMutation')
-      return mutateTripState((state) => {
-        const input = parseWithSchema(schema as never, data) as any
-        validateEntityLinks(state, input)
-        const timestamp = nowIso()
-        const entity = {
-          ...input,
-          id: id(kind),
-          createdAt: timestamp,
-          updatedAt: timestamp,
-        }
-        const dayId = (input as { dayId?: string }).dayId
-        const cleanEntity = { ...entity }
-        delete (cleanEntity as { dayId?: string }).dayId
-        return {
-          state: {
-            ...state,
-            [key]: [...(state[key] as any[]), cleanEntity],
-            dayItems: dayId
-              ? [...state.dayItems, makeDayItem(state, dayId, kind, entity.id)]
-              : state.dayItems,
-          },
-          result: cleanEntity,
-        }
-      })
-    })
-}
-
-function updateLinkedEntityAction(
-  schema: unknown,
-  key: 'hotels' | 'tickets',
-  kind: 'hotel' | 'ticket',
-  missingMessage: string,
-) {
-  return createServerFn({ method: 'POST' })
-    .validator((value: unknown) => value)
-    .handler(async ({ data }) => {
-      const { mutateTripState } = await import('../repositories/stateMutation')
-      return mutateTripState((state) => {
-        const input = parseWithSchema(schema as never, data) as {
-          id: string
-          dayId?: string
-        } & Record<string, unknown>
-        validateEntityLinks(state, input)
-        const existing = findRequired(state[key] as any[], input.id, missingMessage)
-        const entity = { ...existing, ...input, updatedAt: nowIso() }
-        const dayId = input.dayId
-        delete (entity as { dayId?: string }).dayId
-        return {
-          state: {
-            ...state,
-            [key]: (state[key] as any[]).map((candidate) =>
-              candidate.id === entity.id ? entity : candidate,
-            ),
-            dayItems: syncDayItemLink(state.dayItems, state, kind, entity.id, dayId),
-          },
-          result: entity,
-        }
-      })
-    })
-}
-
-function deleteLinkedEntityAction(
-  key: 'hotels' | 'tickets',
-  kind: 'hotel' | 'ticket',
-  missingMessage: string,
-) {
-  return createServerFn({ method: 'POST' })
-    .validator((value: unknown) => value)
-    .handler(async ({ data }) => {
-      const { mutateTripState } = await import('../repositories/stateMutation')
-      return mutateTripState((state) => {
-        const itemId = String((data as { id?: string }).id ?? '')
-        findRequired(state[key] as any[], itemId, missingMessage)
-        return {
-          state: {
-            ...state,
-            [key]: (state[key] as any[]).filter((item) => item.id !== itemId),
-            dayItems: state.dayItems.filter(
-              (item) => !(item.kind === kind && item.refId === itemId),
-            ),
-          },
-          result: { id: itemId },
-        }
-      })
-    })
-}
 
 function makeDayItem(
   state: import('../../types/trip').TripState,
