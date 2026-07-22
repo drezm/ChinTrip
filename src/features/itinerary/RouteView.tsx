@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { CalendarPlus, FileText, Plus } from 'lucide-react'
+import { CalendarPlus } from 'lucide-react'
 
 import {
   createDay,
@@ -22,6 +22,7 @@ import {
   RouteEntityCard,
   SubmitRow,
   Textarea,
+  TextInputForm,
   formatShortDate,
   formatWeekday,
   formGridClass,
@@ -252,21 +253,10 @@ function NoteForm({
   onCreate: (note: string) => void
 }) {
   return (
-    <form
-      className="flex min-w-0 flex-col gap-2 sm:flex-row"
-      onSubmit={(event) => {
-        event.preventDefault()
-        const data = new FormData(event.currentTarget)
-        const note = getFormString(data, 'note')
-        if (!note) return
-        onCreate(note)
-        event.currentTarget.reset()
-      }}
-    >
-      <Input className="min-w-0 flex-1" name="note" placeholder="Заметка к дню" />
-      <Button className="shrink-0" type="submit" size="icon-lg" aria-label={`Добавить заметку ${dayId}`}>
-        <Plus />
-      </Button>
-    </form>
+    <TextInputForm
+      placeholder="Заметка к дню"
+      buttonLabel={`Добавить заметку ${dayId}`}
+      onSubmit={onCreate}
+    />
   )
 }

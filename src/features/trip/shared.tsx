@@ -562,7 +562,7 @@ export function TextInputForm({
 }) {
   return (
     <form
-      className="flex min-w-0 flex-col gap-2 sm:flex-row"
+      className="relative min-w-0"
       onSubmit={(event) => {
         event.preventDefault()
         const form = event.currentTarget
@@ -572,8 +572,18 @@ export function TextInputForm({
         form.reset()
       }}
     >
-      <Input className="min-w-0 flex-1" name="value" placeholder={placeholder} />
-      <Button className="shrink-0" type="submit" size="icon-lg" aria-label={buttonLabel}>
+      <Input
+        className="min-w-0 pr-12"
+        name="value"
+        placeholder={placeholder}
+        enterKeyHint="done"
+      />
+      <Button
+        className="absolute right-1 top-1/2 !size-8 !min-h-8 !min-w-8 -translate-y-1/2 rounded-lg"
+        type="submit"
+        size="icon-sm"
+        aria-label={buttonLabel}
+      >
         <Plus />
       </Button>
     </form>

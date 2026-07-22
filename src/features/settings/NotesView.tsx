@@ -24,6 +24,7 @@ import {
   PageHeader,
   SelectField,
   SubmitRow,
+  TextInputForm,
   formGridClass,
   getFormString,
 } from '../trip/shared'
@@ -158,12 +159,10 @@ function ChecklistCard({
             </div>
           ))}
         </div>
-        <form
-          className="flex min-w-0 flex-col gap-2 sm:flex-row"
-          onSubmit={(event) => {
-            event.preventDefault()
-            const text = getFormString(new FormData(event.currentTarget), 'text')
-            if (!text) return
+        <TextInputForm
+          placeholder="Новый пункт"
+          buttonLabel="Добавить пункт"
+          onSubmit={(text) =>
             void mutate(
               'Пункт добавлен',
               createChecklistItem({ data: { checklistId: checklist.id, text } }),
@@ -172,14 +171,8 @@ function ChecklistCard({
                 checklistItems: [...current.checklistItems, item],
               }),
             )
-            event.currentTarget.reset()
-          }}
-        >
-          <Input className="min-w-0 flex-1" name="text" placeholder="Новый пункт" />
-          <Button className="shrink-0" type="submit" size="icon-lg">
-            <Plus />
-          </Button>
-        </form>
+          }
+        />
       </CardContent>
       <EntityModal open={editing} title="Редактировать список" onOpenChange={setEditing}>
         <ChecklistForm
